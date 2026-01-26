@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NGA 订阅管理主页 (含日志区)</title>
+<link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "surface-white": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-display antialiased bg-background-light text-slate-900 min-h-screen flex flex-col overflow-x-hidden pb-60">
+<header class="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex h-16 items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-[24px]">archive</span>
+</div>
+<h1 class="text-lg font-bold tracking-tight text-slate-900">NGA 帖子存档助手</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
+    <button id="tabSubscription" class="px-4 py-1.5 text-sm font-medium rounded-md shadow-sm bg-white text-slate-900 transition-all">订阅</button>
+    <button id="tabArchive" class="px-4 py-1.5 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 transition-all">存档</button>
+</div>
+<button id="openHelpBtn" class="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span>使用指南</span>
+</button>
+<div class="h-6 w-px bg-gray-200 hidden sm:block"></div>
+<button id="openSettingsBtn" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span>系统设置</span>
+</button>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Subscription View -->
+    <div id="subscriptionView" class="space-y-6">
+        <section class="w-full">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <div class="flex flex-col gap-6">
+                    <div class="flex items-baseline gap-4">
+                        <h2 class="text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">新增订阅</h2>
+                        <p class="text-slate-500 text-sm">输入 NGA 帖子链接，系统将自动进行监控和存档。</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4 items-stretch">
+                        <div class="relative flex-1 group">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-slate-400">link</span>
+                            </div>
+                            <input id="urlInput" class="block w-full rounded-lg border-gray-300 bg-slate-50 pl-10 pr-10 py-3 text-slate-900 placeholder-slate-400 focus:border-primary focus:ring-primary sm:text-sm shadow-sm transition-all" placeholder="https://bbs.nga.cn/read.php?tid=45571644" type="text"/>
+                            <button id="clearInputBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer" title="清空输入">
+                                <span class="material-symbols-outlined text-[20px]">cancel</span>
+                            </button>
+                        </div>
+                        <button id="addSubscriptionBtn" class="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 active:scale-95 active:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-150 whitespace-nowrap">
+                            <span class="material-symbols-outlined mr-2 text-[20px]">add_circle</span>
+                            添加到订阅
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="w-full">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-semibold text-slate-900">已订阅帖子</h3>
+                        <span id="activeCountBadge" class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary cursor-pointer hover:bg-primary/20 transition-colors select-none" title="点击仅显示活跃任务">0 个活跃</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-slate-400">
+                                <span class="material-symbols-outlined text-[18px]">search</span>
+                            </span>
+                            <input id="searchInput" class="block w-full sm:w-64 rounded-lg border-gray-300 bg-slate-50 pl-8 pr-8 py-1.5 text-sm focus:border-primary focus:ring-primary text-slate-900 placeholder-slate-400" placeholder="搜索帖子..." type="text"/>
+                            <button id="clearSearchBtn" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer hidden" title="清空搜索">
+                                <span class="material-symbols-outlined text-[16px]">cancel</span>
+                            </button>
+                        </div>
+                        <button id="refreshListBtn" class="p-1.5 text-slate-500 hover:text-primary transition-colors rounded-lg hover:bg-slate-100" title="刷新列表">
+                            <span class="material-symbols-outlined text-[20px]">refresh</span>
+                        </button>
+                        <button id="filterBtn" class="p-1.5 text-slate-500 hover:text-primary transition-colors rounded-lg hover:bg-slate-100" title="筛选活跃任务">
+                            <span class="material-symbols-outlined text-[20px]">filter_list</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32" scope="col">TID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider" scope="col">标题</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-40" scope="col">楼主</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32" scope="col">最新进度</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-48" scope="col">最后更新时间</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider w-40" scope="col">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subscriptionTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- JS Generated -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginationContainer" class="bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-between hidden">
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500" id="paginationInfo">
+                                <!-- JS Generated -->
+                            </p>
+                        </div>
+                        <div>
+                            <nav id="paginationNav" aria-label="Pagination" class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                                 <!-- JS Generated -->
+                            </nav>
+                        </div>
+                    </div>
+                    <!-- Mobile pagination -->
+                    <div class="flex sm:hidden justify-between w-full" id="paginationMobile">
+                         <!-- JS Generated -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Archive View -->
+    <div id="archiveView" class="hidden space-y-6">
+        <section class="w-full">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-semibold text-slate-900">本地存档</h3>
+                        <span id="archiveCountBadge" class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">0 个存档</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="refreshArchiveBtn" class="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 active:scale-95 active:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-150 whitespace-nowrap">
+                            <span class="material-symbols-outlined mr-2 text-[20px]">refresh</span>
+                            重新扫描
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32" scope="col">TID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider" scope="col">标题</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-40" scope="col">楼主</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32" scope="col">进度</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider w-40" scope="col">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archiveTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- JS Generated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+<!-- Log Footer -->
+<div id="logFooter" class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-all duration-300 h-10">
+    <div class="max-w-7xl mx-auto flex flex-col h-full">
+        <div class="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 h-10 shrink-0 cursor-pointer" id="logHeader">
+            <div class="flex items-center gap-2 overflow-hidden">
+                <span class="material-symbols-outlined text-slate-500 text-[18px]">terminal</span>
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-600 whitespace-nowrap">后端日志</h3>
+                <div class="h-3 w-px bg-gray-300 mx-1"></div>
+                <span id="lastLogMsg" class="text-xs text-slate-500 font-mono truncate max-w-xl">准备就绪</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="clearLogBtn" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="清空日志">
+                    <span class="material-symbols-outlined text-[18px]">block</span>
+                </button>
+                <button id="toggleLogBtn" class="text-slate-400 hover:text-slate-600 transition-colors p-1" title="切换显示">
+                    <span class="material-symbols-outlined text-[18px]">expand_less</span>
+                </button>
+            </div>
+        </div>
+        <div id="logContainer" class="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1 bg-slate-50">
+            <!-- Log items will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<!-- Markdown Viewer Modal -->
+<div id="markdownModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[90vw] h-[85vh] flex flex-col">
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 border-b border-gray-200 shrink-0">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center justify-center size-10 rounded-full bg-slate-100 text-slate-600">
+                                <span class="material-symbols-outlined">article</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold leading-6 text-gray-900" id="mdModalTitle">帖子预览</h3>
+                                <p class="text-sm text-gray-500 mt-0.5" id="mdModalSubtitle">预览本地存档内容</p>
+                            </div>
+                        </div>
+                        <button id="closeMdModalBtn" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex overflow-hidden bg-slate-50">
+                    <!-- TOC Sidebar -->
+                    <div id="mdSidebar" class="w-72 bg-white border-r border-gray-200 overflow-y-auto p-4 hidden md:block shrink-0">
+                         <h4 class="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">list</span>
+                            目录
+                         </h4>
+                         <div id="mdTOC" class="space-y-1 text-sm"></div>
+                    </div>
+                    
+                    <!-- Main Content -->
+                    <div class="flex-1 overflow-y-auto p-6 scroll-smooth" id="mdContentContainer">
+                        <div id="mdContent" class="prose prose-slate max-w-none bg-white p-8 rounded-lg shadow-sm border border-gray-200 font-mono text-sm whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200 shrink-0">
+                    <button id="closeMdModalBtnBottom" type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">关闭</button>
+                    <button id="refreshMdBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mr-3 sm:w-auto transition-colors" title="重新加载文件">
+                        <span class="material-symbols-outlined mr-1 text-[18px]">refresh</span>刷新
+                    </button>
+                    <button id="viewAllImagesBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mr-3 sm:w-auto transition-colors" title="浏览全部图片">
+                        <span class="material-symbols-outlined mr-1 text-[18px]">collections</span>全部图片
+                    </button>
+                    <button id="fixImageLinksBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 sm:mr-3 sm:w-auto transition-colors">
+                         <span class="material-symbols-outlined mr-1 text-[18px]">build</span>修复图片链接
+                    </button>
+                    <button id="openExternalBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:mr-3 sm:w-auto transition-colors">使用默认应用打开</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Lightbox -->
+<div id="imageLightbox" class="fixed inset-0 z-[60] hidden bg-black/90 flex flex-col">
+    <!-- Main Image Area -->
+    <div class="flex-1 flex items-center justify-center p-4 relative w-full h-full overflow-hidden" id="lightboxMainArea">
+        <img id="lightboxImage" src="" alt="Full size" class="max-w-full max-h-full object-contain shadow-2xl select-none">
+        
+        <button id="closeLightboxBtn" class="absolute top-4 right-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-2 transition-colors z-20">
+            <span class="material-symbols-outlined text-3xl">close</span>
+        </button>
+        
+        <button id="prevImageBtn" class="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-colors z-20 hidden">
+            <span class="material-symbols-outlined text-3xl">chevron_left</span>
+        </button>
+        
+        <button id="nextImageBtn" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-3 transition-colors z-20 hidden">
+            <span class="material-symbols-outlined text-3xl">chevron_right</span>
+        </button>
+    </div>
+    
+    <!-- Thumbnail Strip -->
+    <div id="lightboxThumbsContainer" class="h-24 bg-black/80 w-full shrink-0 border-t border-white/10 p-2 hidden">
+        <div id="lightboxThumbs" class="flex gap-2 h-full overflow-x-auto items-center px-4 mx-auto max-w-7xl">
+            <!-- Thumbs will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<!-- System Settings Modal -->
+<div id="settingsModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl">
+                <!-- Modal Header -->
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center justify-center size-10 rounded-full bg-primary/10 text-primary">
+                                <span class="material-symbols-outlined">settings</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">系统设置</h3>
+                                <p class="text-sm text-gray-500 mt-0.5">修改后端工具 (ngapost2md) 的配置文件</p>
+                            </div>
+                        </div>
+                        <button id="closeSettingsBtn" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="bg-white px-4 py-5 sm:p-6 max-h-[70vh] overflow-y-auto">
+                    <form id="configForm" class="space-y-8">
+                        
+                        <!-- Network Settings -->
+                        <div class="space-y-4">
+                            <h4 class="text-sm font-semibold text-primary border-l-4 border-primary pl-3 uppercase tracking-wider">网络设置 (Network)</h4>
+                            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                                <div class="sm:col-span-4">
+                                    <label for="base_url" class="block text-sm font-medium leading-6 text-gray-900">NGA 域名</label>
+                                    <div class="mt-2">
+                                        <input type="text" name="base_url" id="base_url" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">默认值为 https://bbs.nga.cn</p>
+                                </div>
+
+                                <div class="sm:col-span-2">
+                                    <label for="thread" class="block text-sm font-medium leading-6 text-gray-900">网络并发数</label>
+                                    <div class="mt-2">
+                                        <select id="thread" name="thread" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                            <option value="1">1 (推荐)</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                        </select>
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">若开启“补充原始楼层”，请设为 1</p>
+                                </div>
+
+                                <div class="sm:col-span-6">
+                                    <label for="ua" class="block text-sm font-medium leading-6 text-gray-900">User-Agent</label>
+                                    <div class="mt-2">
+                                        <textarea id="ua" name="ua" rows="2" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"></textarea>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual Guide -->
+                                <div class="sm:col-span-6 bg-gray-50 p-3 rounded-md border border-gray-200 text-xs text-gray-600 space-y-1">
+                                    <p class="font-bold text-gray-700 mb-1">手动填写指南（打开浏览器登录 NGA 论坛后）：</p>
+                                    <p><span class="font-semibold">UA (User-Agent):</span> 按 <kbd class="font-mono bg-gray-200 px-1 rounded">F12</kbd> 打开控制台(Console)，输入 <code class="bg-gray-100 px-1 text-blue-600">navigator.userAgent</code> 并回车复制结果。</p>
+                                    <p><span class="font-semibold">ngaPassportUid:</span> 按 <kbd class="font-mono bg-gray-200 px-1 rounded">F12</kbd> -> 应用程序(Application) -> Cookie -> 找到 NGA 域名 -> 找到同名字段复制值。</p>
+                                    <p><span class="font-semibold">ngaPassportCid:</span> 同上，找到 <code class="bg-gray-100 px-1">ngaPassportCid</code> 字段复制值。</p>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="ngaPassportUid" class="block text-sm font-medium leading-6 text-gray-900">ngaPassportUid</label>
+                                    <div class="mt-2">
+                                        <input type="text" name="ngaPassportUid" id="ngaPassportUid" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" placeholder="自动提取或手动填写">
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="ngaPassportCid" class="block text-sm font-medium leading-6 text-gray-900">ngaPassportCid</label>
+                                    <div class="mt-2">
+                                        <input type="password" name="ngaPassportCid" id="ngaPassportCid" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" placeholder="需手动填写">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Post Settings -->
+                        <div class="space-y-4">
+                            <h4 class="text-sm font-semibold text-primary border-l-4 border-primary pl-3 uppercase tracking-wider">帖子处理 (Post)</h4>
+                            
+                            <!-- Toggle Switches Grid -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="get_ip_location" name="get_ip_location" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="get_ip_location" class="font-medium text-gray-900">查询 IP 地理位置</label>
+                                        <p class="text-gray-500">会导致请求量增加 20 倍</p>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="enhance_ori_reply" name="enhance_ori_reply" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="enhance_ori_reply" class="font-medium text-gray-900">补充引用楼层内容</label>
+                                        <p class="text-gray-500">需将并发数设为 1</p>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="enhance_ori_reply_online" name="enhance_ori_reply_online" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="enhance_ori_reply_online" class="font-medium text-gray-900">在线补充引用 (增强)</label>
+                                        <p class="text-gray-500">可能产生额外网络请求</p>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="use_title_as_folder_name" name="use_title_as_folder_name" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="use_title_as_folder_name" class="font-medium text-gray-900">文件夹名使用标题</label>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="use_title_as_md_file_name" name="use_title_as_md_file_name" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="use_title_as_md_file_name" class="font-medium text-gray-900">文件名使用标题</label>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
+                                        <input id="use_network_media_url" name="use_network_media_url" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="use_network_media_url" class="font-medium text-gray-900">使用在线媒体链接</label>
+                                        <p class="text-gray-500">不下载图片到本地</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Settings -->
+                            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6 mt-4">
+                                <div class="sm:col-span-3">
+                                    <label for="page_download_limit" class="block text-sm font-medium leading-6 text-gray-900">单次下载页数限制</label>
+                                    <div class="mt-2">
+                                        <input type="number" name="page_download_limit" id="page_download_limit" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">0 或 -1 为不限制</p>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="split_md_file" class="block text-sm font-medium leading-6 text-gray-900">Markdown 分卷页数</label>
+                                    <div class="mt-2">
+                                        <input type="number" name="split_md_file" id="split_md_file" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">-1 为不切分</p>
+                                </div>
+                                
+                                <div class="sm:col-span-6">
+                                    <label for="assets_path" class="block text-sm font-medium leading-6 text-gray-900">资源存储路径</label>
+                                    <div class="mt-2">
+                                        <input type="text" name="assets_path" id="assets_path" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">默认为 ./assets/</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
+                    <button id="saveConfigBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:ml-3 sm:w-auto transition-colors">保存配置</button>
+                    <button id="cancelConfigBtn" type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <!-- Modal Header -->
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center justify-center size-10 rounded-full bg-blue-100 text-blue-600">
+                                <span class="material-symbols-outlined">help</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold leading-6 text-gray-900">使用指南</h3>
+                                <p class="text-sm text-gray-500 mt-0.5">如何使用 NGA 帖子存档助手</p>
+                            </div>
+                        </div>
+                        <button id="closeHelpBtn" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="bg-white px-4 py-5 sm:p-6 max-h-[70vh] overflow-y-auto prose prose-sm prose-slate max-w-none">
+                    <h4 class="text-base font-semibold text-slate-900 mb-2">1. 订阅与监控</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-600 mb-4">
+                        <li>在主页输入框中粘贴 NGA 帖子链接，点击“添加到订阅”按钮。</li>
+                        <li>系统支持自动识别 TID 和楼主 ID（只看楼主模式）。</li>
+                        <li><strong>计划任务</strong>：可为每个订阅设置自动更新频率，系统将在后台自动执行。</li>
+                    </ul>
+
+                    <h4 class="text-base font-semibold text-slate-900 mb-2">2. 存档管理 (本地存档)</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-600 mb-4">
+                        <li><strong>扫描存档</strong>：切换到“存档”标签页，点击“重新扫描”按钮可自动发现 <code>outputs</code> 目录下的所有存档。</li>
+                        <li><strong>智能识别</strong>：系统会自动解析 MD 文件头部的标题和楼主信息，修复纯数字文件夹的显示问题。</li>
+                        <li><strong>阅读存档</strong>：点击存档标题可直接调用内置 Markdown 阅读器预览，支持目录跳转和图片浏览。</li>
+                        <li><strong>查看原帖</strong>：点击 TID 链接将使用系统默认浏览器打开 NGA 网页。</li>
+                    </ul>
+
+                    <h4 class="text-base font-semibold text-slate-900 mb-2">3. 内置阅读器</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-600 mb-4">
+                        <li>支持大图预览（Lightbox）、目录导航、一键修复图片链接等功能。</li>
+                        <li>若图片加载失败，可尝试使用“修复图片链接”功能将反斜杠路径转换为标准格式。</li>
+                    </ul>
+
+                    <h4 class="text-base font-semibold text-slate-900 mb-2">4. 配置说明</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-600 mb-4">
+                        <li>建议在系统设置中填写 <strong>Cookie (Uid/Cid)</strong> 以访问需要登录的板块。</li>
+                        <li>建议开启“文件名/文件夹名使用标题”选项，以便于本地文件管理。</li>
+                    </ul>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
+                    <button id="closeHelpBtnBottom" type="button" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto transition-colors">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generic Message Modal -->
+<div id="messageModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm">
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10" id="msgIconContainer">
+                            <span class="material-symbols-outlined text-blue-600" id="msgIcon">info</span>
+                        </div>
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                            <h3 class="text-base font-semibold leading-6 text-gray-900" id="msgTitle">提示</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500 whitespace-pre-wrap break-words" id="msgContent">内容</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6" id="msgFooter">
+                    <button type="button" id="msgConfirmBtn" class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto">确定</button>
+                    <button type="button" id="msgCancelBtn" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto hidden">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Neutralino.js client library -->
+<script src="js/neutralino.js"></script>
+<!-- App main logic -->
+<script src="js/main.js"></script>
+
+</body></html>

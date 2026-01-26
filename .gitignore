@@ -1,0 +1,23 @@
+# Neutralinojs
+.tmp/
+dist/
+bin/
+neutralinojs.log
+
+# User Data
+outputs/*
+!outputs/.gitkeep
+archives.json
+subscriptions.json
+resources/data/subscriptions.json
+
+# System
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Build artifacts in root (if any)
+*.exe
+!ngapost2md.exe

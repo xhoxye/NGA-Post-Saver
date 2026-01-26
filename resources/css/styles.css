@@ -1,0 +1,98 @@
+/* Custom styles for NGA Post Archiver */
+html {
+    scrollbar-gutter: stable;
+}
+
+body {
+    -webkit-user-select: none; /* Disable text selection for app-like feel */
+    user-select: none;
+    cursor: default;
+}
+
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: auto;
+}
+
+/* Allow selection in specific areas */
+#logContainer, #mdContent, .selectable-text {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: auto;
+}
+
+/* Link styles in MD content */
+#mdContent a {
+    color: #2563eb; /* text-blue-600 */
+    text-decoration: underline;
+    cursor: pointer;
+}
+#mdContent a:hover {
+    color: #1d4ed8; /* text-blue-700 */
+}
+
+/* Blockquote styles in MD content */
+#mdContent blockquote {
+    border-left: 4px solid #cbd5e1; /* slate-300 */
+    padding-left: 1rem;
+    color: #475569; /* slate-600 */
+    background-color: #f8fafc; /* slate-50 */
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+#mdContent blockquote p {
+    margin: 0;
+}
+
+/* TOC active item style */
+.toc-item.active {
+    color: #2563eb;
+    background-color: #eff6ff;
+    border-right: 2px solid #2563eb;
+}
+
+/* Modal styles */
+#markdownModal .prose h1,
+#markdownModal .prose h2,
+#markdownModal .prose h3,
+#markdownModal .prose h4,
+#markdownModal .prose h5,
+#markdownModal .prose h6 {
+    font-weight: 700 !important;
+}
+
+/* Image Lightbox */
+#imageLightbox {
+    backdrop-filter: blur(5px);
+}
+#lightboxImage {
+    transition: transform 0.3s ease;
+}
+.lightbox-thumb {
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.lightbox-thumb:hover, .lightbox-thumb.active {
+    opacity: 1;
+    transform: scale(1.05);
+    border-color: #f59e0b;
+}
+
+/* Scrollbar styles for thumbnails */
+#lightboxThumbs::-webkit-scrollbar {
+    height: 8px;
+}
+#lightboxThumbs::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+#lightboxThumbs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+#lightboxThumbs::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}

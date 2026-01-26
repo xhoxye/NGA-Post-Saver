@@ -16,13 +16,20 @@ NGA Post Saver 是一个基于 [Neutralinojs](https://neutralino.js.org) 构建�
 
 ## 界面截图 
 
+添加订阅，设置自动更新计划
 ![订阅界面](img/Screenshots_1.png)
 
+自动扫描本地存档
 ![存档界面](img/Screenshots_2.png)
 
+可视化配置填写
 ![配置界面](img/Screenshots_3.png)
 
+使用指南
 ![使用指南](img/Screenshots_4.png)
+
+内置md文件阅读器
+![阅读器](img/Screenshots_5.png)
 
 ## 使用指南
 

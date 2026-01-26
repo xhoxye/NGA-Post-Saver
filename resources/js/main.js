@@ -214,6 +214,19 @@ async function init() {
 
 async function checkBackendTools() {
     try {
+        // Ensure outputs directory exists
+        const hasOutputsDir = await checkFileExists('outputs');
+        if (!hasOutputsDir) {
+            try {
+                await Neutralino.filesystem.createDirectory('outputs');
+                console.log("Created outputs directory");
+            } catch (e) {
+                console.error("Failed to create outputs directory:", e);
+                // Continue execution to show missing files warning, 
+                // or maybe the missing files check will handle it (since they won't exist).
+            }
+        }
+
         const hasExe = await checkFileExists('outputs/ngapost2md.exe');
         const hasConfig = await checkFileExists('outputs/config.ini');
 

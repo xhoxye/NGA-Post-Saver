@@ -19,7 +19,10 @@ NGA Post Saver 是一个基于 [Neutralinojs](https://neutralino.js.org) 构建�
 1.  **下载与运行**：
     *   下载最新版本的发布包。
     *   解压后运行 `NGA Post Saver.exe` (Windows)。
-    *   **首次运行**：程序会自动检查 `outputs` 目录下是否存在 `ngapost2md.exe` 和 `config.ini`。如果缺失，会提示并引导您前往 GitHub Releases 页面下载。请将下载的文件解压至 `outputs` 目录。
+    *   **首次运行**：
+        *   程序会自动创建 `outputs` 目录（如果不存在）。
+        *   程序会自动检查该目录下是否存在 `ngapost2md.exe` 和 `config.ini`。如果缺失，会弹出提示框并引导您前往 GitHub Releases 页面下载。
+        *   **重要**：请将下载的最新版 `ngapost2md` 压缩包解压，并将 `ngapost2md.exe` 和 `config.ini` 文件放入本程序的 `outputs` 文件夹中。
 
 2.  **添加订阅**：
     *   在主页输入框中粘贴 NGA 帖子链接（如 `https://bbs.nga.cn/read.php?tid=123456`）。

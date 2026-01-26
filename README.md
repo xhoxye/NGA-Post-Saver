@@ -14,11 +14,21 @@ NGA Post Saver 是一个基于 [Neutralinojs](https://neutralino.js.org) 构建�
 *   **便捷操作**：支持直接打开原始网页、打开本地存档文件夹；启动时自动检查后端工具完整性。
 *   **日志监控**：实时查看后端工具的运行日志。
 
+## 界面截图 
+
+![订阅界面](img/Screenshots_1.png)
+
+![存档界面](img/Screenshots_2.png)
+
+![配置界面](img/Screenshots_3.png)
+
+![使用指南](img/Screenshots_4.png)
+
 ## 使用指南
 
 1.  **下载与运行**：
     *   下载最新版本的发布包。
-    *   解压后运行 `NGA Post Saver.exe` (Windows)。
+    *   解压后运行 `ngapost2md_gui-win_x64.exe` (Windows)。
     *   **首次运行**：
         *   程序会自动创建 `outputs` 目录（如果不存在）。
         *   程序会自动检查该目录下是否存在 `ngapost2md.exe` 和 `config.ini`。如果缺失，会弹出提示框并引导您前往 GitHub Releases 页面下载。

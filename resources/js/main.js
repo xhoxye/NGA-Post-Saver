@@ -1248,9 +1248,9 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                     // 0. Try to use MD filename as title if current title is weak (pure digits)
                     // Extract filename from local_path
                     const mdFileName = sub.local_path.split('/').pop().replace(/\.md$/i, '');
-                    if (mdFileName.toLowerCase() !== 'readme' && !mdFileName.includes(sub.tid)) {
-                         // Check if current title is weak (pure digits/symbols) OR corrupted (starts with <span)
-                         if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span')) {
+                    if (mdFileName.toLowerCase() !== 'readme' && mdFileName.toLowerCase() !== 'post' && !mdFileName.includes(sub.tid)) {
+                         // Check if current title is weak (pure digits/symbols) OR corrupted (starts with <span) OR is placeholder
+                         if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title === '等待获取...') {
                              sub.title = mdFileName;
                          }
                     }
@@ -1269,8 +1269,8 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                                  continue;
                              }
 
-                             // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted
-                             if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span')) {
+                             // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted OR is placeholder
+                             if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title === '等待获取...') {
                                  sub.title = extractedText;
                              }
                             break; 

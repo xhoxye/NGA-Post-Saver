@@ -405,6 +405,9 @@ function setupEventListeners() {
     // Markdown Modal Listeners
     const closeMd = () => {
         markdownModal.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+        const floatBtns = document.getElementById('mdFloatingBtns');
+        if (floatBtns) floatBtns.classList.add('opacity-0', 'pointer-events-none');
     };
     closeMdModalBtn.addEventListener('click', closeMd);
     closeMdModalBtnBottom.addEventListener('click', closeMd);
@@ -1374,179 +1377,224 @@ window.openSubscriptionFolder = async (id) => {
     }
 };
 
+// Helper: Convert ArrayBuffer to Base64
+const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+};
+
+// Helper: Load Local Image Data
+const loadLocalImageData = async (path) => {
+    const data = await Neutralino.filesystem.readBinaryFile(path);
+    const base64 = arrayBufferToBase64(data);
+    const ext = path.split('.').pop().toLowerCase();
+    let mime = 'image/jpeg';
+    if (ext === 'png') mime = 'image/png';
+    else if (ext === 'gif') mime = 'image/gif';
+    else if (ext === 'webp') mime = 'image/webp';
+    else if (ext === 'svg') mime = 'image/svg+xml';
+    return `data:${mime};base64,${base64}`;
+};
+
 window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
     if (!filePath) {
-        // If called from archive list without a path (e.g. only folder exists but no MD found yet)
         alert("未找到本地文件路径，请先刷新或检查文件是否存在。");
         return;
     }
 
-    // Define load content function
-    const loadContent = async () => {
-        try {
-            let content = await Neutralino.filesystem.readFile(filePath);
-            
-            mdModalTitle.textContent = title || '帖子存档';
-            mdModalSubtitle.textContent = subtitle || filePath;
-            
-            // Calculate base path for images
-            // filePath is relative like "outputs/xxx/post.md"
-            // We need absolute path for file:// protocol
-            let absPath = NL_CWD + '/' + filePath;
-            // Get directory of the file
-            let absDir = absPath.substring(0, absPath.lastIndexOf('/'));
-            // Ensure forward slashes for URL
-            absDir = absDir.replace(/\\/g, '/');
-            
-            // Simple rendering or usage of marked if available
-            const renderMD = async (txt) => {
-                // Fix titles like ##### <span id="...">...</span>
-                let cleanTxt = txt.replace(/<span[^>]*>(.*?)<\/span>/g, '$1');
-                cleanTxt = cleanTxt.replace(/<pid:[^>]*>/g, '');
-                // Also fix ##### headers being stuck to text
-                cleanTxt = cleanTxt.replace(/^##### (.*?)$/gm, '##### $1');
-                
-                // Pre-process images: replace local paths with Base64
-                // Regex: ![alt](url)
-                // We need to use a loop or something to handle async replacements
-                
-                // Find all image matches
-                const imgRegex = /!\[(.*?)\]\((.*?)\)/g;
-                let match;
-                let replacements = [];
-                
-                while ((match = imgRegex.exec(cleanTxt)) !== null) {
-                    const fullMatch = match[0];
-                    const alt = match[1];
-                    let url = match[2];
-                    
-                    // Normalize slashes
-                    url = url.replace(/\\/g, '/');
-                    
-                    // Check if local relative path
-                    if (!url.match(/^(http|https|file|data):/) && !url.startsWith('/')) {
-                        // It's a relative path like "assets/xxx.jpg"
-                        // Construct absolute path for reading
-                        // Note: filePath is relative "outputs/..."
-                        // We need "outputs/xxx/assets/xxx.jpg"
-                        
-                        // Get directory of the markdown file relative to app root
-                        const mdDir = filePath.substring(0, filePath.lastIndexOf('/'));
-                        const imagePath = mdDir + '/' + url;
-                        
-                        replacements.push({
-                            fullMatch,
-                            imagePath,
-                            alt
-                        });
-                    }
-                }
-                
-                // Process replacements
-                for (const rep of replacements) {
-                    try {
-                        // Read binary file
-                        const data = await Neutralino.filesystem.readBinaryFile(imagePathToSysPath(rep.imagePath));
-                        // Convert to base64
-                        const base64 = arrayBufferToBase64(data);
-                        // Determine mime type
-                        const ext = rep.imagePath.split('.').pop().toLowerCase();
-                        let mime = 'image/jpeg';
-                        if (ext === 'png') mime = 'image/png';
-                        if (ext === 'gif') mime = 'image/gif';
-                        if (ext === 'webp') mime = 'image/webp';
-                        
-                        const dataUrl = `data:${mime};base64,${base64}`;
-                        
-                        // Replace in text (use split/join to avoid regex escaping issues if possible, or just replace one by one)
-                        // Be careful if same image appears multiple times
-                        cleanTxt = cleanTxt.replace(rep.fullMatch, `![${rep.alt}](${dataUrl})`);
-                        
-                    } catch (e) {
-                        console.error("Failed to load image:", rep.imagePath, e);
-                        // Keep original or show error placeholder
-                    }
-                }
+    // Lock body scroll to prevent main interface scrolling
+    document.body.style.overflow = 'hidden';
 
-                if (typeof marked !== 'undefined') {
-                    return marked.parse(cleanTxt);
-                } else {
-                    return simpleMarkdownRender(cleanTxt);
-                }
-            };
+    // UI Reset
+    mdModalTitle.textContent = title || '帖子存档';
+    mdModalSubtitle.textContent = subtitle || filePath;
+    const mdContentContainer = document.getElementById('mdContentContainer');
+    if(mdContentContainer) mdContentContainer.scrollTop = 0;
     
-            if (typeof marked !== 'undefined') {
-                mdContent.innerHTML = await renderMD(content);
-            } else {
-                // Fallback: Try to load marked dynamically
-                try {
-                        mdContent.innerHTML = await renderMD(content);
-                        
-                        // Try to load marked for next time
-                        const script = document.createElement('script');
-                        script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-                        script.onload = async () => { 
-                            console.log("Marked loaded"); 
-                            // Re-render once loaded
-                            mdContent.innerHTML = await renderMD(content);
-                            
-                            // Re-apply features
-                            generateTOC();
-                            
-                            // Handle external links
-                            const links = mdContent.querySelectorAll('a');
-                            links.forEach(link => {
-                                const href = link.getAttribute('href');
-                                // Check if external link (http/https) and not an anchor (#)
-                                if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-                                    link.onclick = (e) => {
-                                        e.preventDefault();
-                                        Neutralino.os.open(href);
-                                    };
-                                }
-                            });
-                            
-                            const imgs = mdContent.querySelectorAll('img');
-                            currentLightboxImages = [];
-                            imgs.forEach((img, index) => {
-                                // Filter out smileys
-                                if (img.src.includes('/smile/')) return;
+    // Initial loading state
+    mdContent.innerHTML = '<div class="flex flex-col items-center justify-center p-10 gap-3"><span class="loading loading-spinner loading-lg text-primary"></span><span class="text-slate-500">正在加载文档...</span></div>';
+    
+    const modal = document.getElementById('markdownModal');
+    if (modal) modal.classList.remove('hidden');
 
-                                currentLightboxImages.push({
-                                    src: img.src,
-                                    alt: img.alt || `Image ${index + 1}`
-                                });
-                                img.style.cursor = 'zoom-in';
-                                img.onclick = (e) => {
-                                    e.stopPropagation();
-                                    // Find the correct index in the filtered array
-                                    const lightboxIndex = currentLightboxImages.findIndex(item => item.src === img.src);
-                                    if (lightboxIndex !== -1) {
-                                        openLightbox(lightboxIndex);
-                                    }
-                                };
-                            });
-                        };
-                        // Only append if not already there
-                        if (!document.querySelector('script[src*="marked.min.js"]')) {
-                        document.head.appendChild(script);
-                        }
-                } catch(e) {
-                    mdContent.textContent = content;
+    // Reset State
+    currentLightboxImages = []; // Global lightbox list
+    const seenImages = new Set(); // To filter duplicates in lightbox
+    
+    // Helper to update "View All Images" button
+    const updateViewAllBtn = (loading = false) => {
+        if (!viewAllImagesBtn) return;
+        
+        let countText = `(${currentLightboxImages.length} 张)`;
+        if (loading) countText = `(加载中... ${currentLightboxImages.length} 张)`;
+        
+        if (currentLightboxImages.length > 0 || loading) {
+            viewAllImagesBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            viewAllImagesBtn.disabled = false;
+            viewAllImagesBtn.title = `浏览全部图片 ${countText}`;
+            // If loading, maybe show a spinner icon? For now text is enough.
+            viewAllImagesBtn.innerHTML = `<span class="material-symbols-outlined mr-1 text-[18px]">collections</span>${loading ? '加载中...' : '全部图片'} <span class="text-xs ml-1">${currentLightboxImages.length}</span>`;
+        } else {
+            viewAllImagesBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            viewAllImagesBtn.disabled = true;
+            viewAllImagesBtn.title = '当前文档没有可浏览的图片';
+            viewAllImagesBtn.innerHTML = `<span class="material-symbols-outlined mr-1 text-[18px]">collections</span>全部图片`;
+        }
+    };
+    updateViewAllBtn(); // Reset button
+
+    // Helper: Load Lazy Image
+    const loadLazyImage = async (img) => {
+        if (img.dataset.loaded === 'true') return;
+        const relPath = img.getAttribute('data-original-src');
+        if (!relPath) return;
+        
+        try {
+            const finalSrc = await loadLocalImageData(relPath);
+            img.src = finalSrc;
+            img.dataset.loaded = 'true';
+            img.classList.remove('lazy-load-img', 'bg-gray-50', 'min-h-[50px]');
+            img.style.cursor = 'zoom-in';
+
+            // Update lightbox entry if exists
+            const entry = currentLightboxImages.find(item => item.path === relPath);
+            if (entry) {
+                entry.src = finalSrc;
+            }
+        } catch (e) {
+            console.error("Failed to load image:", relPath, e);
+            img.alt = `(加载失败) ${img.alt}`;
+            img.classList.add('border-red-200', 'bg-red-50');
+        }
+    };
+
+    // IntersectionObserver for Lazy Loading
+    const lazyImageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                loadLazyImage(img);
+                observer.unobserve(img);
+            }
+        });
+    }, { 
+        root: mdContentContainer, // Use the scroll container as root
+        rootMargin: '500px 0px 500px 0px' // Preload 500px before/after
+    });
+
+    try {
+        // 1. Read File
+        let content = await Neutralino.filesystem.readFile(filePath);
+        
+        // 2. Prepare Chunks
+        // Split by NGA floor marker (##### )
+        // Use lookahead to keep delimiter
+        let chunks = content.split(/(?=^##### )/gm);
+        if (chunks.length === 0) chunks = [content];
+        
+        mdContent.innerHTML = ''; // Clear loading spinner
+        // Clear footer progress
+        const footerProgress = document.getElementById('mdLoadingProgress');
+        if (footerProgress) footerProgress.innerHTML = '';
+        
+        let currentChunkIndex = 0;
+        const CHUNK_SIZE = 50; // Render 50 floors per batch
+        let isRenderingBatch = false;
+        let autoLoadTimer = null;
+        
+        // Helper: Open Lightbox by Path
+        const openLightboxByPath = (path) => {
+            const idx = currentLightboxImages.findIndex(img => img.path === path || img.src === path);
+            if (idx !== -1) openLightbox(idx);
+        };
+
+        // Helper: Render Chunk Text
+        const renderChunkText = async (text) => {
+            // Clean headers and pid tags
+            let cleanTxt = text.replace(/<span[^>]*>(.*?)<\/span>/g, '$1')
+                               .replace(/<pid:[^>]*>/g, '')
+                               .replace(/^##### (.*?)$/gm, '##### $1');
+            
+            // Transform images to Lazy Load tags
+            // ![alt](url) -> <img data-original-src="...">
+            cleanTxt = cleanTxt.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
+                url = url.replace(/\\/g, '/');
+                // Check if local relative path
+                if (!url.match(/^(http|https|file|data):/) && !url.startsWith('/')) {
+                     const mdDir = filePath.substring(0, filePath.lastIndexOf('/'));
+                     const imagePath = mdDir + '/' + url;
+                     // Return HTML for marked to pass through
+                     // Use a transparent svg placeholder
+                     return `<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==" data-original-src="${imagePath}" alt="${alt}" class="lazy-load-img max-w-full h-auto rounded-lg my-2 min-h-[50px] bg-gray-50 transition-opacity duration-300" />`;
                 }
+                return match; // External images
+            });
+
+            // Render Markdown
+            if (typeof marked !== 'undefined') {
+                return marked.parse(cleanTxt);
+            } else {
+                return simpleMarkdownRender(cleanTxt);
+            }
+        };
+
+        // Function to append next batch
+        const appendNextBatch = async (isAuto = false) => {
+            if (isRenderingBatch) return;
+            const loadingProgress = document.getElementById('mdLoadingProgress');
+
+            if (currentChunkIndex >= chunks.length) {
+                // Done
+                if (document.getElementById('scroll-sentinel')) document.getElementById('scroll-sentinel').remove();
+                if (loadingProgress) loadingProgress.innerHTML = ''; // Clear progress
+                
+                const endMsg = document.createElement('div');
+                endMsg.className = 'py-8 text-center text-slate-300 text-xs italic';
+                endMsg.innerText = '--- 全文完 ---';
+                if (!mdContent.innerText.includes('--- 全文完 ---')) mdContent.appendChild(endMsg);
+                generateTOC();
+                updateViewAllBtn(false); // Final update
+                return;
             }
 
-            // Post-process HTML for lightbox
-            // Find all images in mdContent and attach click listeners
-            setTimeout(() => {
-                // Generate TOC
-                generateTOC();
+            isRenderingBatch = true;
+            // Update button to loading state with count
+            updateViewAllBtn(true);
+            
+            // Update Progress Bar
+            if (loadingProgress) {
+                const progress = Math.round((currentChunkIndex / chunks.length) * 100);
+                loadingProgress.innerHTML = `<span class="loading loading-spinner loading-xs mr-2"></span>正在加载剩余楼层 (${progress}%)...`;
+            }
 
-                // Handle external links
-                const links = mdContent.querySelectorAll('a');
+            try {
+                const batch = chunks.slice(currentChunkIndex, currentChunkIndex + CHUNK_SIZE);
+                if (batch.length === 0) {
+                    isRenderingBatch = false;
+                    return;
+                }
+                
+                currentChunkIndex += CHUNK_SIZE;
+                
+                // Join and Render
+                const html = await renderChunkText(batch.join(''));
+                
+                // Create container for this batch to avoid full re-layout
+                const batchContainer = document.createElement('div');
+                batchContainer.innerHTML = html;
+                mdContent.appendChild(batchContainer);
+                
+                // Post-process new elements
+                
+                // 1. External Links
+                const links = batchContainer.querySelectorAll('a');
                 links.forEach(link => {
                     const href = link.getAttribute('href');
-                    // Check if external link (http/https) and not an anchor (#)
                     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
                         link.onclick = (e) => {
                             e.preventDefault();
@@ -1554,85 +1602,117 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
                         };
                     }
                 });
-
-                const imgs = mdContent.querySelectorAll('img');
-                currentLightboxImages = [];
-                imgs.forEach((img, index) => {
-                    // Filter out smileys
+                
+                // 2. Images (Lazy + Lightbox)
+                const imgs = batchContainer.querySelectorAll('img');
+                imgs.forEach(img => {
                     if (img.src.includes('/smile/')) return;
-
-                    // Store image info
-                    currentLightboxImages.push({
-                        src: img.src,
-                        alt: img.alt || `Image ${index + 1}`
-                    });
                     
-                    // Add click listener
+                    const isLazy = img.classList.contains('lazy-load-img');
+                    
+                    // Unified Lightbox Registration
+                    // For local: use data-original-src (path). For external: use src.
+                    const uniqueKey = isLazy ? img.getAttribute('data-original-src') : img.src;
+                    
+                    if (uniqueKey && !seenImages.has(uniqueKey)) {
+                        seenImages.add(uniqueKey);
+                        currentLightboxImages.push({
+                            type: isLazy ? 'local' : 'external',
+                            path: isLazy ? uniqueKey : null,
+                            src: isLazy ? null : uniqueKey, // Local starts null
+                            alt: img.alt
+                        });
+                    }
+
+                    // If lazy, observe it
+                    if (isLazy) {
+                        lazyImageObserver.observe(img);
+                    }
+                    
+                    // Click handler for ALL images
                     img.style.cursor = 'zoom-in';
                     img.onclick = (e) => {
-                        e.stopPropagation(); // Prevent modal close? No, modal is separate
-                        // Find the correct index in the filtered array
-                        const lightboxIndex = currentLightboxImages.findIndex(item => item.src === img.src);
-                        if (lightboxIndex !== -1) {
-                            openLightbox(lightboxIndex);
+                        e.stopPropagation();
+                        // If lazy and not loaded, force load
+                        if (isLazy && img.dataset.loaded !== 'true') {
+                             loadLazyImage(img).then(() => {
+                                 // Use path for local lookup
+                                 openLightboxByPath(uniqueKey);
+                             });
+                        } else {
+                            openLightboxByPath(uniqueKey);
                         }
                     };
                 });
-
-                // Update View All Images Button State
-                if (viewAllImagesBtn) {
-                        if (currentLightboxImages.length > 0) {
-                            viewAllImagesBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                            viewAllImagesBtn.disabled = false;
-                            viewAllImagesBtn.title = `浏览全部图片 (${currentLightboxImages.length} 张)`;
-                        } else {
-                            viewAllImagesBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                            viewAllImagesBtn.disabled = true;
-                            viewAllImagesBtn.title = '当前文档没有可浏览的图片';
-                        }
+                
+                // Generate/Update TOC
+                if (currentChunkIndex % (CHUNK_SIZE * 2) === 0 || currentChunkIndex >= chunks.length) {
+                     generateTOC();
                 }
-            }, 500); // Wait for render
-        } catch (e) {
-            console.error("Read MD failed:", e);
-            addLog('ERROR', `读取存档文件失败: ${e.message}`);
-            mdContent.textContent = "读取文件失败: " + e.message;
-        }
-    };
 
-    // Helper to convert ArrayBuffer to Base64
-    function arrayBufferToBase64(buffer) {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
+                // Sentinel for Infinite Scroll
+                const oldSentinel = document.getElementById('scroll-sentinel');
+                if (oldSentinel) oldSentinel.remove();
+                
+                if (currentChunkIndex < chunks.length) {
+                    const sentinel = document.createElement('div');
+                    sentinel.id = 'scroll-sentinel';
+                    // Invisible target for intersection observer
+                    sentinel.className = 'h-10 w-full opacity-0 pointer-events-none';
+                    mdContent.appendChild(sentinel);
+                    
+                    const sentinelObserver = new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting) {
+                            sentinelObserver.disconnect();
+                            if (autoLoadTimer) clearTimeout(autoLoadTimer);
+                            appendNextBatch(); 
+                        }
+                    }, { root: mdContentContainer, rootMargin: '200px' });
+                    
+                    sentinelObserver.observe(sentinel);
+                    
+                    // AUTO LOAD NEXT BATCH
+                    autoLoadTimer = setTimeout(() => {
+                        appendNextBatch(true);
+                    }, 100);
+                } else {
+                    // Final wrap up
+                    const endMsg = document.createElement('div');
+                    endMsg.className = 'py-8 text-center text-slate-300 text-xs italic';
+                    endMsg.innerText = '--- 全文完 ---';
+                    mdContent.appendChild(endMsg);
+                    generateTOC(); 
+                    updateViewAllBtn(false);
+                    if (loadingProgress) loadingProgress.innerHTML = ''; // Ensure clear
+                }
+            } catch (e) {
+                console.error("Batch render error:", e);
+            } finally {
+                isRenderingBatch = false;
+            }
+        };
+        
+        // Initial Batch
+        await appendNextBatch();
+        
+        // Try to load marked if missing (Optional optimization for future)
+        if (typeof marked === 'undefined' && !document.querySelector('script[src*="marked.min.js"]')) {
+             const script = document.createElement('script');
+             script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+             document.head.appendChild(script);
         }
-        return window.btoa(binary);
+        
+    } catch (e) {
+        console.error("Read MD failed:", e);
+        addLog('ERROR', `读取存档文件失败: ${e.message}`);
+        mdContent.innerHTML = `<div class="text-red-500 p-4">读取文件失败: ${e.message}</div>`;
     }
-    
-    // Helper to convert app relative path to system path for Neutralino readBinaryFile
-    // readBinaryFile expects path relative to CWD (app root) or absolute
-    function imagePathToSysPath(relativePath) {
-            // relativePath is like "outputs/xxx/assets/xxx.jpg"
-            // This is already relative to CWD if running from app root.
-            // Just ensure slashes are correct?
-            return relativePath;
-    }
-
-    // Initial load
-    await loadContent();
     
     // Setup Refresh Button
     const refreshBtn = document.getElementById('refreshMdBtn');
     if (refreshBtn) {
         refreshBtn.onclick = async () => {
-            await loadContent();
-            // Optional: visual feedback
-            const icon = refreshBtn.querySelector('.material-symbols-outlined');
-            if(icon) {
-                icon.classList.add('animate-spin');
-                setTimeout(() => icon.classList.remove('animate-spin'), 500);
-            }
+            await window.openLocalMarkdownFile(filePath, title, subtitle);
         };
     }
 
@@ -1640,7 +1720,6 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
     const openExtBtn = document.getElementById('openExternalBtn');
     if (openExtBtn) {
         openExtBtn.onclick = async () => {
-            // Use full absolute path for Windows
             let absPath = NL_CWD + '/' + filePath;
             absPath = absPath.replace(/\//g, '\\');
             try {
@@ -1655,12 +1734,8 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
     if (fixImageLinksBtn) {
         fixImageLinksBtn.onclick = async () => {
             if(!await window.showConfirm("确定要修复文档中的图片链接斜杠错误吗？\n这会修改本地文件。")) return;
-            
             try {
-                // Re-read content to ensure we have latest
                 let content = await Neutralino.filesystem.readFile(filePath);
-                
-                // Replace backslashes in image links
                 let fixedContent = content.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
                     const fixedUrl = url.replace(/\\/g, '/');
                     return `![${alt}](${fixedUrl})`;
@@ -1670,19 +1745,93 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
                     await Neutralino.filesystem.writeFile(filePath, fixedContent);
                     addLog('SUCCESS', `已修复图片链接: ${title}`);
                     alert("修复完成！正在重新加载...");
-                    await loadContent(); // Reload to show changes
+                    await window.openLocalMarkdownFile(filePath, title, subtitle);
                 } else {
                     alert("未发现需要修复的链接。");
                 }
             } catch(e) {
-                console.error("Fix failed:", e);
                 alert("修复失败: " + e.message);
             }
         };
     }
 
-    const modal = document.getElementById('markdownModal');
-    if (modal) modal.classList.remove('hidden');
+    // Setup Floating Buttons
+    const floatBtns = document.getElementById('mdFloatingBtns');
+    const scrollTopBtn = document.getElementById('mdScrollTopBtn');
+    const scrollBottomBtn = document.getElementById('mdScrollBottomBtn');
+    const mdModal = document.getElementById('mdModal');
+
+    if (floatBtns && mdContentContainer) {
+        // Reset state
+        floatBtns.classList.add('opacity-0', 'pointer-events-none');
+        
+        // Ensure buttons are hidden when modal is hidden (CSS handles this if inside modal, but good to be safe)
+        // Check visibility
+        const checkVisibility = () => {
+             // Show only if:
+             // 1. Modal is open (handled by parent visibility)
+             // 2. Content is scrollable (scrollHeight > clientHeight)
+             // 3. User has scrolled a bit? Or always show if scrollable?
+             // User said: "只在阅读器打开时显示" - handled by DOM structure inside modal
+             // User said: "正文区域右侧居中" - handled by fixed positioning with CSS tweaks
+             
+             if (mdContentContainer.scrollHeight > mdContentContainer.clientHeight) {
+                 floatBtns.classList.remove('opacity-0', 'pointer-events-none');
+             } else {
+                 floatBtns.classList.add('opacity-0', 'pointer-events-none');
+             }
+        };
+
+        // Update on scroll
+        const handleScroll = () => {
+            // Always show if scrollable, maybe fade out if idle?
+            // User requirement: "只针对md阅读正文区域有效"
+            if (mdContentContainer.scrollHeight > mdContentContainer.clientHeight) {
+                 floatBtns.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        };
+        
+        // Update on resize or content change
+        const resizeObserver = new ResizeObserver(() => {
+            checkVisibility();
+        });
+        resizeObserver.observe(mdContentContainer);
+        resizeObserver.observe(mdContent);
+
+        mdContentContainer.removeEventListener('scroll', handleScroll); 
+        mdContentContainer.addEventListener('scroll', handleScroll);
+        
+        // Initial check
+        setTimeout(checkVisibility, 500); // Wait for render
+
+        if (scrollTopBtn) {
+            scrollTopBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mdContentContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+        }
+
+        if (scrollBottomBtn) {
+            scrollBottomBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mdContentContainer.scrollTo({ top: mdContentContainer.scrollHeight, behavior: 'smooth' });
+            };
+        }
+        
+        // Hook into close button to hide
+        const closeBtn = document.getElementById('closeMdModalBtn');
+        const closeBtnBottom = document.getElementById('closeMdModalBtnBottom');
+        
+        const hideBtns = () => {
+             floatBtns.classList.add('opacity-0', 'pointer-events-none');
+             resizeObserver.disconnect();
+        };
+        
+        if (closeBtn) closeBtn.addEventListener('click', hideBtns);
+        if (closeBtnBottom) closeBtnBottom.addEventListener('click', hideBtns);
+    }
 };
 
 window.openMarkdownViewer = async (id) => {
@@ -1724,10 +1873,30 @@ function closeLightbox() {
     lightboxImage.src = ''; // Clear memory
 }
 
-function updateLightbox() {
+async function updateLightbox() {
     const img = currentLightboxImages[currentLightboxIndex];
     if (img) {
-        lightboxImage.src = img.src;
+        // Load image if needed
+        if (!img.src && img.path) {
+            // Show loading state (opacity)
+            lightboxImage.style.opacity = '0.5';
+            try {
+                const src = await loadLocalImageData(img.path);
+                img.src = src; // Cache it
+                
+                // Update thumb if it exists
+                const thumb = lightboxThumbs.children[currentLightboxIndex];
+                if (thumb) {
+                    thumb.src = src;
+                    thumb.classList.remove('bg-gray-700');
+                }
+            } catch (e) {
+                console.error("Lightbox load failed", e);
+            }
+            lightboxImage.style.opacity = '1';
+        }
+        
+        lightboxImage.src = img.src || '';
         lightboxImage.alt = img.alt;
         
         // Update active thumb
@@ -1748,8 +1917,14 @@ function renderLightboxThumbs() {
     lightboxThumbs.innerHTML = '';
     currentLightboxImages.forEach((img, i) => {
         const thumb = document.createElement('img');
-        thumb.src = img.src;
-        thumb.className = `lightbox-thumb h-16 w-auto object-cover rounded cursor-pointer border border-transparent hover:border-white/50 shrink-0 ${i === currentLightboxIndex ? 'active border-amber-500 border-2 opacity-100' : ''}`;
+        // Use transparent placeholder if src is missing
+        thumb.src = img.src || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==';
+        thumb.className = `lightbox-thumb h-16 w-auto min-w-[3rem] object-cover rounded cursor-pointer border border-transparent hover:border-white/50 shrink-0 ${i === currentLightboxIndex ? 'active border-amber-500 border-2 opacity-100' : ''}`;
+        
+        if (!img.src) {
+            thumb.classList.add('bg-gray-700'); // Dark placeholder background
+        }
+        
         thumb.onclick = (e) => {
             e.stopPropagation();
             currentLightboxIndex = i;
@@ -2173,11 +2348,12 @@ async function scanArchives() {
                                 }
 
                                 // 2. Try to find Author/Landlord
-                                // User feedback: ##### <span id="pid0">0.[5] \<pid:0\> ... by qwellk123(37758939)</span>
-                                const mainFloorLine = lines.find(l => l.includes('id="pid0"'));
+                                // User feedback: ##### <span id="pid826486433">0.[16] <pid:826486433> 2025-06-06 18:26:50 by 拨小弦(12467316)</span>
+                                // Match any line that looks like a floor header with floor 0 (main post)
+                                const mainFloorLine = lines.find(l => /id="pid\d+">0\.\[/.test(l));
                                 if (mainFloorLine) {
                                     // Match "by username(" - capture non-greedy until (
-                                    const authorMatch = mainFloorLine.match(/by\s+(.*?)\(/);
+                                    const authorMatch = mainFloorLine.match(/by\s+(.*?)\(\d+\)/);
                                     if (authorMatch && authorMatch[1]) {
                                         metadata.author = authorMatch[1].trim();
                                     }

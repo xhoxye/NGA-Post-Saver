@@ -249,8 +249,18 @@
                     </div>
                     
                     <!-- Main Content -->
-                    <div class="flex-1 overflow-y-auto p-6 scroll-smooth" id="mdContentContainer">
+                    <div class="flex-1 overflow-y-auto p-6 scroll-smooth relative group" id="mdContentContainer">
                         <div id="mdContent" class="prose prose-slate max-w-none bg-white p-8 rounded-lg shadow-sm border border-gray-200 font-mono text-sm whitespace-pre-wrap"></div>
+                        
+                        <!-- Floating Navigation Buttons (Inside Container) -->
+                        <div id="mdFloatingBtns" class="fixed right-[20px] top-1/2 -translate-y-1/2 flex flex-col gap-2 z-[55] opacity-0 pointer-events-none transition-opacity duration-300">
+                             <button type="button" id="mdScrollTopBtn" class="bg-white/90 hover:bg-white text-slate-400 hover:text-primary shadow-md hover:shadow-lg rounded-full w-8 h-8 flex items-center justify-center transition-all border border-slate-200" title="回到顶部">
+                                 <span class="material-symbols-outlined text-lg">arrow_upward</span>
+                             </button>
+                             <button type="button" id="mdScrollBottomBtn" class="bg-white/90 hover:bg-white text-slate-400 hover:text-primary shadow-md hover:shadow-lg rounded-full w-8 h-8 flex items-center justify-center transition-all border border-slate-200" title="直达底部">
+                                 <span class="material-symbols-outlined text-lg">arrow_downward</span>
+                             </button>
+                        </div>
                     </div>
                 </div>
 
@@ -266,11 +276,18 @@
                          <span class="material-symbols-outlined mr-1 text-[18px]">build</span>修复图片链接
                     </button>
                     <button id="openExternalBtn" type="button" class="inline-flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:mr-3 sm:w-auto transition-colors">使用默认应用打开</button>
+                    <div id="mdLoadingProgress" class="text-sm text-gray-500 italic flex items-center mt-3 sm:mt-0 sm:mr-auto"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Floating Action Buttons for MD Reader -->
+<!-- Positioned relative to mdContentContainer which is inside the modal -->
+<!-- Moved inside the modal structure dynamically or use fixed with calculation? -->
+<!-- User wants it right next to the scrollbar of the content area. -->
+<!-- Best approach: Put it INSIDE the #mdModal structure, specifically next to #mdContentContainer -->
 
 <!-- Image Lightbox -->
 <div id="imageLightbox" class="fixed inset-0 z-[60] hidden bg-black/90 flex flex-col">

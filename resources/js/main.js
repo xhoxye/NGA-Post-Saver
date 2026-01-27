@@ -1066,8 +1066,11 @@ function renderSubscriptions() {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                 <div class="flex flex-col">
                     ${sub.latestProgress ? `
-                        <span class="text-xs font-bold text-slate-700">${sub.latestProgress.max_page} 页</span>
-                        <span class="text-xs text-slate-500">${sub.latestProgress.max_floor} 楼</span>
+                        <span class="text-xs font-bold ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_page} 页</span>
+                        <span class="text-xs ${sub.hasNewContent ? 'text-green-500 font-bold' : 'text-slate-500'}">
+                            ${sub.latestProgress.max_floor} 楼
+                            ${sub.hasNewContent ? '<span class="inline-flex items-center justify-center px-1.5 py-0.5 ml-1 rounded text-[10px] font-bold bg-green-100 text-green-600 border border-green-200">NEW</span>' : ''}
+                        </span>
                     ` : '<span class="text-xs text-slate-400">-</span>'}
                 </div>
             </td>
@@ -1270,9 +1273,18 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                         const maxPageMatch = iniContent.match(/max_page=(\d+)/);
                         
                         if (maxFloorMatch && maxPageMatch) {
+                            const newMaxFloor = parseInt(maxFloorMatch[1], 10);
+                            const newMaxPage = parseInt(maxPageMatch[1], 10);
+
+                            // Check for updates
+                            const oldMaxFloor = sub.latestProgress ? sub.latestProgress.max_floor : 0;
+                            if (newMaxFloor > oldMaxFloor) {
+                                sub.hasNewContent = true;
+                            }
+
                             sub.latestProgress = {
-                                max_floor: parseInt(maxFloorMatch[1], 10),
-                                max_page: parseInt(maxPageMatch[1], 10)
+                                max_floor: newMaxFloor,
+                                max_page: newMaxPage
                             };
                             addLog('INFO', `更新进度: ${sub.latestProgress.max_page}页 / ${sub.latestProgress.max_floor}楼`);
                         }
@@ -1655,6 +1667,14 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
 window.openMarkdownViewer = async (id) => {
     const sub = subscriptions.find(s => s.id === id);
     if (!sub) return;
+    
+    // Clear new content flag if it exists
+    if (sub.hasNewContent) {
+        sub.hasNewContent = false;
+        await saveSubscriptions();
+        renderSubscriptions();
+    }
+    
     await openLocalMarkdownFile(sub.local_path, sub.title || '帖子存档', sub.local_path);
 };
 

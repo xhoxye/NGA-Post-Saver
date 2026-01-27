@@ -1048,7 +1048,7 @@ function renderSubscriptions() {
         }
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+            <td class="px-3 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
                 <a href="#" onclick="Neutralino.os.open('${sub.url}'); return false;" class="hover:text-primary hover:underline" title="在新窗口打开原帖">${sub.tid}</a>
             </td>
             <td class="px-6 py-4">
@@ -1057,20 +1057,17 @@ function renderSubscriptions() {
                     <span class="text-xs text-slate-500 mt-0.5 line-clamp-1 code-snippet" title="${sub.command}">${sub.command}</span>
                 </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+            <td class="px-3 py-4 whitespace-nowrap text-sm text-slate-500">
                 <div class="flex items-center gap-2">
-                    <div class="size-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">?</div>
                     ${sub.author}
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
-                <div class="flex flex-col">
+                <div class="flex items-center gap-2">
                     ${sub.latestProgress ? `
-                        <span class="text-xs font-bold ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_page} 页</span>
-                        <span class="text-xs ${sub.hasNewContent ? 'text-green-500 font-bold' : 'text-slate-500'}">
-                            ${sub.latestProgress.max_floor} 楼
-                            ${sub.hasNewContent ? '<span class="inline-flex items-center justify-center px-1.5 py-0.5 ml-1 rounded text-[10px] font-bold bg-green-100 text-green-600 border border-green-200">NEW</span>' : ''}
-                        </span>
+                        <span class="text-xs ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_page}页</span>
+                        <span class="text-xs ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_floor}楼</span>
+                        <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-600 border border-green-200 ${sub.hasNewContent ? '' : 'invisible'}">NEW</span>
                     ` : '<span class="text-xs text-slate-400">-</span>'}
                 </div>
             </td>
@@ -1250,32 +1247,32 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                     const mdFileName = sub.local_path.split('/').pop().replace(/\.md$/i, '');
                     if (mdFileName.toLowerCase() !== 'readme' && mdFileName.toLowerCase() !== 'post' && !mdFileName.includes(sub.tid)) {
                          // Check if current title is weak (pure digits/symbols) OR corrupted (starts with <span) OR is placeholder
-                         if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title === '等待获取...') {
-                             sub.title = mdFileName;
-                         }
-                    }
-
-                    let mdContent = await Neutralino.filesystem.readFile(sub.local_path);
-                    const lines = mdContent.split(/\r?\n/).slice(0, 100);
-
-                    // 1. Try to find Title
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
-                        if (titleMatch) {
-                            const extractedText = titleMatch[2].trim();
-                             // Ignore if it looks like a floor header (starts with <span or contains id="pid")
-                             if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
-                                 continue;
-                             }
-
-                             // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted OR is placeholder
-                             if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title === '等待获取...') {
-                                 sub.title = extractedText;
-                             }
-                            break; 
+                        if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title.includes('等待获取')) {
+                            sub.title = mdFileName;
                         }
-                    }
+                   }
+
+                   let mdContent = await Neutralino.filesystem.readFile(sub.local_path);
+                   const lines = mdContent.split(/\r?\n/).slice(0, 100);
+
+                   // 1. Try to find Title
+                   for (const line of lines) {
+                       const trimmed = line.trim();
+                       const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+                       if (titleMatch) {
+                           const extractedText = titleMatch[2].trim();
+                            // Ignore if it looks like a floor header (starts with <span or contains id="pid")
+                            if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
+                                continue;
+                            }
+
+                            // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted OR is placeholder
+                            if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title.includes('等待获取')) {
+                                sub.title = extractedText;
+                            }
+                           break; 
+                       }
+                   }
 
                     const pid0Match = mdContent.match(/<span id="pid0">.*?by\s+(.+?)\(\d+\)/);
                     if (pid0Match) {
@@ -2140,12 +2137,12 @@ async function scanArchives() {
 
                              // 0. Try to use MD filename as title if current title is weak (pure digits)
                              const mdFileName = mdFile.entry.replace(/\.md$/i, '');
-                             if (mdFileName.toLowerCase() !== 'readme' && !mdFileName.includes(metadata.tid)) {
-                                 // Check if current title is weak (pure digits/symbols)
-                                 if (/^[\d\s\(\)\-]+$/.test(metadata.title)) {
-                                     metadata.title = mdFileName;
-                                 }
-                             }
+                             if (mdFileName.toLowerCase() !== 'readme' && mdFileName.toLowerCase() !== 'post' && !mdFileName.includes(metadata.tid)) {
+                                // Check if current title is weak (pure digits/symbols) OR is 'post'
+                                if (/^[\d\s\(\)\-]+$/.test(metadata.title) || metadata.title.toLowerCase() === 'post') {
+                                    metadata.title = mdFileName;
+                                }
+                            }
                              
                              // Read MD content for Title and Author
                             try {
@@ -2166,11 +2163,11 @@ async function scanArchives() {
                                             continue;
                                         }
 
-                                        // Only overwrite if current title is effectively just IDs (numbers and parens)
-                                        // User request: 只对纯数字标题进行覆盖
-                                        if (/^[\d\s\(\)\-]+$/.test(metadata.title)) {
-                                            metadata.title = extractedText;
-                                        }
+                                        // Only overwrite if current title is effectively just IDs (numbers and parens) OR is 'post'
+                                       // User request: 只对纯数字标题进行覆盖
+                                       if (/^[\d\s\(\)\-]+$/.test(metadata.title) || metadata.title.toLowerCase() === 'post') {
+                                           metadata.title = extractedText;
+                                       }
                                         break; // Stop after first title found
                                     }
                                 }
@@ -2297,27 +2294,33 @@ function renderArchiveList() {
         }
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+            <td class="px-3 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
                 <a href="#" class="archive-tid-link hover:text-primary hover:underline" title="在浏览器中打开">${item.tid}</a>
             </td>
             <td class="px-6 py-4">
                 <a href="#" class="archive-title-link text-sm font-medium text-slate-900 hover:text-primary line-clamp-2 cursor-pointer" title="阅读存档">${displayTitle}</a>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+            <td class="px-3 py-4 whitespace-nowrap text-sm text-slate-500">
                 ${displayAuthor}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                 ${progressStr}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button class="add-to-sub-btn inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset transition-colors ${
-                    isSubscribed 
-                    ? 'bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed' 
-                    : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50 active:scale-95 active:bg-slate-100'
-                }" data-url="${item.url}" ${isSubscribed ? 'disabled' : ''}>
-                    <span class="material-symbols-outlined mr-1 text-[16px]">${isSubscribed ? 'check_circle' : 'add_circle'}</span>
-                    <span class="btn-text">${isSubscribed ? '已订阅' : '添加到订阅'}</span>
-                </button>
+                <div class="flex items-center justify-end gap-2">
+                    <button class="open-folder-btn inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-200 text-slate-400 hover:text-amber-600 hover:border-amber-600 hover:bg-amber-50 transition-all" title="打开所在文件夹">
+                        <span class="material-symbols-outlined text-[18px]">folder_open</span>
+                    </button>
+                    
+                    <button class="add-to-sub-btn inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset transition-colors ${
+                        isSubscribed 
+                        ? 'bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed' 
+                        : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50 active:scale-95 active:bg-slate-100'
+                    }" data-url="${item.url}" ${isSubscribed ? 'disabled' : ''}>
+                        <span class="material-symbols-outlined mr-1 text-[16px]">${isSubscribed ? 'check_circle' : 'add_circle'}</span>
+                        <span class="btn-text">${isSubscribed ? '已订阅' : '添加到订阅'}</span>
+                    </button>
+                </div>
             </td>
         `;
 
@@ -2326,6 +2329,29 @@ function renderArchiveList() {
         tidLink.addEventListener('click', (e) => {
             e.preventDefault();
             Neutralino.os.open(item.url);
+        });
+        
+        const openFolderBtn = row.querySelector('.open-folder-btn');
+        openFolderBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (item.local_path) {
+                // local_path is file path, get folder
+                const lastSlash = item.local_path.lastIndexOf('/');
+                let folderPath = lastSlash !== -1 ? item.local_path.substring(0, lastSlash) : item.local_path;
+                let absPath = NL_CWD + '/' + folderPath;
+                absPath = absPath.replace(/\//g, '\\');
+                try {
+                    await Neutralino.os.open(absPath);
+                    addLog('INFO', `打开文件夹: ${absPath}`);
+                } catch (e) {
+                    console.error("Open folder failed:", e);
+                    addLog('ERROR', `打开文件夹失败: ${e.message}`);
+                }
+            } else {
+                 // Try to guess from tid/authorid? Usually local_path should be set if found.
+                 // item is from scanArchives which sets local_path
+                 alert("无法定位文件夹路径");
+            }
         });
 
         const titleLink = row.querySelector('.archive-title-link');

@@ -1238,19 +1238,43 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
 
             sub.last_updated = new Date().toLocaleString();
 
-            const foundPath = await findDownloadedFile(sub.tid, sub.saved_options);
+            const foundPath = await findDownloadedFile(sub.tid, sub.authorid, sub.saved_options);
 
             if (foundPath) {
                 sub.local_path = foundPath.replace(/\\/g, '/');
                 addLog('INFO', `定位到存档文件: ${sub.local_path}`);
 
                 try {
+                    // 0. Try to use MD filename as title if current title is weak (pure digits)
+                    // Extract filename from local_path
+                    const mdFileName = sub.local_path.split('/').pop().replace(/\.md$/i, '');
+                    if (mdFileName.toLowerCase() !== 'readme' && !mdFileName.includes(sub.tid)) {
+                         // Check if current title is weak (pure digits/symbols) OR corrupted (starts with <span)
+                         if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span')) {
+                             sub.title = mdFileName;
+                         }
+                    }
+
                     let mdContent = await Neutralino.filesystem.readFile(sub.local_path);
-                    const titleMatch = mdContent.match(/^#+\s+(.+)$/m);
-                    if (titleMatch) {
-                        let title = titleMatch[1].trim();
-                        title = title.replace(/-只看\s*\d+$/, '');
-                        sub.title = title;
+                    const lines = mdContent.split(/\r?\n/).slice(0, 100);
+
+                    // 1. Try to find Title
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+                        if (titleMatch) {
+                            const extractedText = titleMatch[2].trim();
+                             // Ignore if it looks like a floor header (starts with <span or contains id="pid")
+                             if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
+                                 continue;
+                             }
+
+                             // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted
+                             if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span')) {
+                                 sub.title = extractedText;
+                             }
+                            break; 
+                        }
                     }
 
                     const pid0Match = mdContent.match(/<span id="pid0">.*?by\s+(.+?)\(\d+\)/);
@@ -1809,7 +1833,7 @@ function simpleMarkdownRender(text) {
 }
 
 // Helper to find downloaded file based on TID and config options
-async function findDownloadedFile(tid, options) {
+async function findDownloadedFile(tid, authorid, options) {
     try {
         const entries = await Neutralino.filesystem.readDirectory('outputs');
         
@@ -1825,7 +1849,41 @@ async function findDownloadedFile(tid, options) {
         // Regex for matching: ^tid($|[-(\[])
         const tidPattern = new RegExp(`^${tid}($|[-(\[])`);
         
-        let targetFolder = candidates.find(e => tidPattern.test(e.entry));
+        // Filter all matching folders for this TID
+        let matches = candidates.filter(e => tidPattern.test(e.entry));
+        
+        let targetFolder = null;
+
+        if (authorid) {
+            // If authorid is provided, look for exact match in folder name: (authorid)
+            targetFolder = matches.find(e => e.entry.includes(`(${authorid})`));
+        }
+
+        // If not found specific author folder, or no authorid provided, fall back to first match
+        // But if authorid WAS provided, we should be careful not to match a folder with DIFFERENT authorid
+        if (!targetFolder) {
+            if (authorid) {
+                 // Try to find one WITHOUT any authorid (pure TID or TID-Title)
+                 targetFolder = matches.find(e => !/\(\d+\)/.test(e.entry));
+                 
+                 // If still not found, we must be careful. 
+                 // If matches[0] exists but belongs to ANOTHER author, we should NOT use it.
+                 if (!targetFolder && matches.length > 0) {
+                     const fallback = matches[0];
+                     const authorMatch = fallback.entry.match(/\((\d+)\)/);
+                     if (authorMatch && authorMatch[1] !== authorid) {
+                         // Conflict found: The folder belongs to a different author.
+                         // Do NOT select this folder.
+                         targetFolder = null;
+                     } else {
+                         targetFolder = fallback;
+                     }
+                 }
+            } else {
+                 // No authorid requested, just take the first one
+                 if (matches.length > 0) targetFolder = matches[0];
+            }
+        }
         
         if (!targetFolder) return null;
         
@@ -1878,7 +1936,7 @@ window.openSubscriptionFolder = async (id) => {
     
     // If no path saved, try to find it now
     if (!filePath) {
-        filePath = await findDownloadedFile(sub.tid, sub.saved_options);
+        filePath = await findDownloadedFile(sub.tid, sub.authorid, sub.saved_options);
         if (filePath) {
             sub.local_path = filePath.replace(/\\/g, '/');
             await saveSubscriptions();
@@ -2079,6 +2137,15 @@ async function scanArchives() {
                         
                         if (mdFile) {
                              metadata.local_path = `${folderPath}/${mdFile.entry}`;
+
+                             // 0. Try to use MD filename as title if current title is weak (pure digits)
+                             const mdFileName = mdFile.entry.replace(/\.md$/i, '');
+                             if (mdFileName.toLowerCase() !== 'readme' && !mdFileName.includes(metadata.tid)) {
+                                 // Check if current title is weak (pure digits/symbols)
+                                 if (/^[\d\s\(\)\-]+$/.test(metadata.title)) {
+                                     metadata.title = mdFileName;
+                                 }
+                             }
                              
                              // Read MD content for Title and Author
                             try {
@@ -2093,7 +2160,17 @@ async function scanArchives() {
                                     const trimmed = line.trim();
                                     const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
                                     if (titleMatch) {
-                                        metadata.title = titleMatch[2].trim();
+                                        const extractedText = titleMatch[2].trim();
+                                        // Ignore if it looks like a floor header (starts with <span or contains id="pid")
+                                        if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
+                                            continue;
+                                        }
+
+                                        // Only overwrite if current title is effectively just IDs (numbers and parens)
+                                        // User request: 只对纯数字标题进行覆盖
+                                        if (/^[\d\s\(\)\-]+$/.test(metadata.title)) {
+                                            metadata.title = extractedText;
+                                        }
                                         break; // Stop after first title found
                                     }
                                 }

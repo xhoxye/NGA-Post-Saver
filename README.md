@@ -4,6 +4,10 @@ NGA Post Saver 是一个基于 [Neutralinojs](https://neutralino.js.org) 构建�
 
 通过本项目，您可以方便地管理 NGA 帖子订阅，自动下载帖子内容（Markdown 格式）及图片，并直接在本地进行预览和管理。
 
+## 已知问题
+
+*   Windows 系统休眠唤醒后，程序可能无法执行调用后端工具的指令，需要手动重启程序。 -- 2026年1月29日
+
 ## 主要功能
 
 *   **订阅管理**：支持添加、删除、搜索 NGA 帖子订阅。
@@ -35,7 +39,7 @@ NGA Post Saver 是一个基于 [Neutralinojs](https://neutralino.js.org) 构建�
 
 1.  **下载与运行**：
     *   下载最新版本的发布包。
-    *   解压后运行 `ngapost2md_gui-win_x64.exe` (Windows)。
+    *   解压后运行 `ngapost2md_gui-win_x64.exe` (Windows，其他平台需要自行编译，因为我没有)。
     *   **首次运行**：
         *   程序会自动创建 `outputs` 目录（如果不存在）。
         *   程序会自动检查该目录下是否存在 `ngapost2md.exe` 和 `config.ini`。如果缺失，会弹出提示框并引导您前往 GitHub Releases 页面下载。

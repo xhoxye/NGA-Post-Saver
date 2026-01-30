@@ -210,6 +210,53 @@ async function init() {
 
     // Check for backend tools
     await checkBackendTools();
+
+    // Setup health check on focus (handles wake from sleep)
+    window.addEventListener('focus', async () => {
+        console.log("Window focused, checking backend connection...");
+        const isConnected = await checkBackendConnection();
+        if (!isConnected) {
+            console.warn("Backend connection lost on focus. Attempting to recover...");
+            handleConnectionLost();
+        }
+    });
+}
+
+// --- Health Check Logic ---
+
+async function checkBackendConnection() {
+    try {
+        // Simple lightweight call to check if backend is responsive
+        // Add timeout race to prevent hanging if connection is dead
+        const timeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Connection timeout")), 3000)
+        );
+        
+        await Promise.race([
+            Neutralino.app.getConfig(),
+            timeout
+        ]);
+        return true;
+    } catch (e) {
+        console.error("Backend connection check failed:", e);
+        return false;
+    }
+}
+
+let isConnectionAlertShown = false;
+
+async function handleConnectionLost() {
+    if (isConnectionAlertShown) return;
+    isConnectionAlertShown = true;
+    
+    try {
+        const shouldReload = await window.showConfirm("检测到后端服务连接中断（可能是系统休眠导致）。\n\n是否重新加载程序以恢复连接？");
+        if (shouldReload) {
+            location.reload();
+        }
+    } finally {
+        isConnectionAlertShown = false;
+    }
 }
 
 async function checkBackendTools() {
@@ -1210,6 +1257,15 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
 
     addLog('TASK', `${isManual ? '手动' : '自动'}更新任务: ${sub.title || sub.command}`);
 
+    // Pre-execution health check
+    if (!await checkBackendConnection()) {
+        addLog('ERROR', '后端服务未响应，无法执行任务');
+        await handleConnectionLost();
+        updatingId = null;
+        renderSubscriptions();
+        return;
+    }
+
     try {
         if (!configData.post) {
             await loadConfig();
@@ -1344,6 +1400,14 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
         }
     } catch (e) {
         console.error("Execution error:", e);
+
+        // Check if connection is lost
+        if (!await checkBackendConnection()) {
+            addLog('ERROR', `执行异常: 后端连接已断开`);
+            await handleConnectionLost();
+            return;
+        }
+
         addLog('ERROR', `执行异常: ${e.message}`);
         if (isManual) {
             alert("执行出错: " + e.message);

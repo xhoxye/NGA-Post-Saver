@@ -42,7 +42,7 @@
 <div class="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
 <span class="material-symbols-outlined text-[24px]">archive</span>
 </div>
-<h1 class="text-lg font-bold tracking-tight text-slate-900">NGA 帖子存档助手</h1>
+<h1 class="text-lg font-bold tracking-tight text-slate-900">NGA 帖子存档助手</h1> v1.0.3.1
 </div>
 <div class="flex items-center gap-6">
 <div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
@@ -438,6 +438,16 @@
 
                                 <div class="relative flex gap-x-3">
                                     <div class="flex h-6 items-center">
+                                        <input id="use_network_media_url" name="use_network_media_url" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                    </div>
+                                    <div class="text-sm leading-6">
+                                        <label for="use_network_media_url" class="font-medium text-gray-900">使用在线媒体链接</label>
+                                        <p class="text-gray-500">不下载图片到本地</p>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex gap-x-3">
+                                    <div class="flex h-6 items-center">
                                         <input id="use_title_as_folder_name" name="use_title_as_folder_name" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
                                     </div>
                                     <div class="text-sm leading-6">
@@ -451,16 +461,6 @@
                                     </div>
                                     <div class="text-sm leading-6">
                                         <label for="use_title_as_md_file_name" class="font-medium text-gray-900">文件名使用标题</label>
-                                    </div>
-                                </div>
-
-                                <div class="relative flex gap-x-3">
-                                    <div class="flex h-6 items-center">
-                                        <input id="use_network_media_url" name="use_network_media_url" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
-                                    </div>
-                                    <div class="text-sm leading-6">
-                                        <label for="use_network_media_url" class="font-medium text-gray-900">使用在线媒体链接</label>
-                                        <p class="text-gray-500">不下载图片到本地</p>
                                     </div>
                                 </div>
                             </div>

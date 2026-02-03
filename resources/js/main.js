@@ -1760,11 +1760,7 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
         await appendNextBatch();
         
         // Try to load marked if missing (Optional optimization for future)
-        if (typeof marked === 'undefined' && !document.querySelector('script[src*="marked.min.js"]')) {
-             const script = document.createElement('script');
-             script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-             document.head.appendChild(script);
-        }
+        // Removed dynamic CDN loading to prevent timeout errors
         
     } catch (e) {
         console.error("Read MD failed:", e);

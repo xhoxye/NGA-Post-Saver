@@ -1,6 +1,9 @@
 {
   "applicationId": "js.neutralino.ngapost2md_gui",
-  "version": "1.0.0",
+  "version": "1.0.3.1",
+  "description": "NGA 帖子存档助手 - 离线保存与阅读工具",
+  "author": "小河",
+  "copyright": "Copyright © 2026 小河",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/resources/",
@@ -15,7 +18,7 @@
   },
   "modes": {
     "window": {
-      "title": "NGA Post Saver",
+      "title": "NGA 帖子存档助手",
       "width": 1024,
       "height": 768,
       "minWidth": 800,
@@ -32,7 +35,7 @@
     }
   },
   "cli": {
-    "binaryName": "ngapost2md_gui",
+    "binaryName": "ngapost2md-gui",
     "resourcesPath": "/resources/",
     "extensionsPath": "/extensions/",
     "clientLibrary": "/resources/js/neutralino.js",

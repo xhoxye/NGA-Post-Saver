@@ -381,7 +381,7 @@
                                     <p class="font-bold text-gray-700 mb-1">手动填写指南（打开浏览器登录 NGA 论坛后）：</p>
                                     <p><span class="font-semibold">UA (User-Agent):</span> 按 <kbd class="font-mono bg-gray-200 px-1 rounded">F12</kbd> 打开控制台(Console)，输入 <code class="bg-gray-100 px-1 text-blue-600">navigator.userAgent</code> 并回车复制结果。</p>
                                     <p><span class="font-semibold">ngaPassportUid:</span> 按 <kbd class="font-mono bg-gray-200 px-1 rounded">F12</kbd> -> 应用程序(Application) -> Cookie -> 找到 NGA 域名 -> 找到同名字段复制值。</p>
-                                    <p><span class="font-semibold">ngaPassportCid:</span> 同上，找到 <code class="bg-gray-100 px-1">ngaPassportCid</code> 字段复制值。</p>
+                                    <p><span class="font-semibold">ngaPassportCid:</span> 同上，找到 <code class="bg-gray-100 px-1">ngaPassportCid</code> 字段复制值（每隔一段时间如三个月登录状态失效的话，需要重新填写）。</p>
                                 </div>
 
                                 <div class="sm:col-span-3">
@@ -562,8 +562,11 @@
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
-                    <button id="closeHelpBtnBottom" type="button" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto transition-colors">关闭</button>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-6 border-t border-gray-200">
+                    <a href="#" onclick="Neutralino.os.open('https://github.com/xhoxye/NGA-Post-Saver'); return false;" class="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto transition-colors" title="打开 GitHub 仓库">
+                        <span class="material-symbols-outlined mr-1 text-[18px]">link</span>GitHub
+                    </a>
+                    <button id="closeHelpBtnBottom" type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">关闭</button>
                 </div>
             </div>
         </div>

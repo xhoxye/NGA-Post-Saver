@@ -799,6 +799,51 @@ function parseNgaUrl(url) {
     }
 }
 
+function buildAuthorThreadUrl(authorid) {
+    if (!authorid || authorid === '-1') return null;
+    return `https://bbs.nga.cn/nuke.php?func=ucp&uid=${encodeURIComponent(authorid)}`;
+}
+
+function formatAuthorDisplay(authorName, authorid) {
+    const normalizedName = (authorName || '').trim();
+    const isPlaceholder = !normalizedName || normalizedName === '未知' || normalizedName === '-' || /^ID:/i.test(normalizedName);
+    if (!isPlaceholder) return normalizedName;
+    if (!authorid) return '未知';
+    if (authorid === '-1') return '匿名用户';
+    return `UID:${authorid}`;
+}
+
+function parseAuthorFromMdContent(mdContent) {
+    if (!mdContent) return null;
+    const lines = mdContent.split(/\r?\n/).slice(0, 120);
+    const mainFloorLine = lines.find(line => /id="pid\d+">0\.\[/.test(line)) ||
+        lines.find(line => /0\.\[\d+\]/.test(line));
+    const contentToSearch = mainFloorLine || mdContent;
+
+    const normalizedContent = contentToSearch
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const authorMatch = normalizedContent.match(/by\s+(.+?)\s*\((-?\d+)\)/);
+    if (authorMatch) {
+        return {
+            author: authorMatch[1].trim(),
+            authorid: authorMatch[2]
+        };
+    }
+
+    const uidMatch = normalizedContent.match(/by\s+UID:(\d+)/i);
+    if (uidMatch) {
+        return {
+            author: `UID:${uidMatch[1]}`,
+            authorid: uidMatch[1]
+        };
+    }
+
+    return null;
+}
+
 // --- Data Persistence ---
 
 async function loadSubscriptions() {
@@ -1093,9 +1138,15 @@ function renderSubscriptions() {
 
         // Title logic: append (只看楼主) if authorid exists
         let displayTitle = sub.title || sub.command;
-        if (sub.authorid) {
+        if (sub.authorid && sub.authorid !== '-1') {
             displayTitle += ` <span class="text-xs text-slate-400 font-normal">(只看楼主: ${sub.authorid})</span>`;
         }
+
+        const authorDisplay = formatAuthorDisplay(sub.author, sub.authorid);
+        const authorThreadUrl = buildAuthorThreadUrl(sub.authorid);
+        const authorLink = authorThreadUrl
+            ? `<a href="#" onclick="openUrl('${authorThreadUrl}'); return false;" class="hover:text-primary hover:underline" title="查看楼主NGA用户信息">${authorDisplay}</a>`
+            : authorDisplay;
 
         row.innerHTML = `
             <td class="px-3 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
@@ -1109,7 +1160,7 @@ function renderSubscriptions() {
             </td>
             <td class="px-3 py-4 whitespace-nowrap text-sm text-slate-500">
                 <div class="flex items-center gap-2">
-                    ${sub.author}
+                    ${authorLink}
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
@@ -1333,14 +1384,14 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                        }
                    }
 
-                    const pid0Match = mdContent.match(/<span id="pid0">.*?by\s+(.+?)\(\d+\)/);
-                    if (pid0Match) {
-                        sub.author = pid0Match[1].trim();
-                    } else {
-                        const fallbackMatch = mdContent.match(/by\s+(.+?)\(\d+\)/);
-                        if (fallbackMatch) {
-                            sub.author = fallbackMatch[1].trim();
+                    const parsedAuthor = parseAuthorFromMdContent(mdContent);
+                    if (parsedAuthor) {
+                        sub.author = parsedAuthor.author;
+                        if (!sub.authorid) {
+                            sub.authorid = parsedAuthor.authorid;
                         }
+                    } else {
+                        sub.author = formatAuthorDisplay(sub.author, sub.authorid);
                     }
                     
                     // Read process.ini for progress
@@ -1588,6 +1639,7 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
             // ![alt](url) -> <img data-original-src="...">
             cleanTxt = cleanTxt.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
                 url = url.replace(/\\/g, '/');
+                const isExternalHttp = /^(https?:)?\/\//i.test(url) || /^(http|https):/i.test(url);
                 // Check if local relative path
                 if (!url.match(/^(http|https|file|data):/) && !url.startsWith('/')) {
                      const mdDir = filePath.substring(0, filePath.lastIndexOf('/'));
@@ -1596,7 +1648,10 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
                      // Use a transparent svg placeholder
                      return `<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==" data-original-src="${imagePath}" alt="${alt}" class="lazy-load-img max-w-full h-auto rounded-lg my-2 min-h-[50px] bg-gray-50 transition-opacity duration-300" />`;
                 }
-                return match; // External images
+                if (isExternalHttp) {
+                    return `<img src="${url}" alt="${alt}" referrerpolicy="no-referrer" loading="lazy" class="max-w-full h-auto rounded-lg my-2" />`;
+                }
+                return match; // Other schemes (file/data/absolute)
             });
 
             // Render Markdown
@@ -2170,6 +2225,12 @@ window.openUrl = async (url) => {
     }
 };
 
+window.openAuthorPage = async (authorid) => {
+    if (!authorid) return;
+    const url = `https://bbs.nga.cn/nuke.php?func=ucp&uid=${encodeURIComponent(authorid)}`;
+    await window.openUrl(url);
+};
+
 window.openSubscriptionFolder = async (id) => {
     const sub = subscriptions.find(s => s.id === id);
     if (!sub) return;
@@ -2367,7 +2428,7 @@ async function scanArchives() {
                          url: url,
                          command: command,
                          title: folderTitle || entry.entry, // Fallback to folder name
-                         author: folderAuthorId ? `UID:${folderAuthorId}` : '未知',
+                         author: formatAuthorDisplay(folderAuthorId ? `UID:${folderAuthorId}` : '未知', folderAuthorId),
                          local_path: '',
                          latestProgress: null
                      };
@@ -2420,12 +2481,11 @@ async function scanArchives() {
                                 // 2. Try to find Author/Landlord
                                 // User feedback: ##### <span id="pid826486433">0.[16] <pid:826486433> 2025-06-06 18:26:50 by 拨小弦(12467316)</span>
                                 // Match any line that looks like a floor header with floor 0 (main post)
-                                const mainFloorLine = lines.find(l => /id="pid\d+">0\.\[/.test(l));
-                                if (mainFloorLine) {
-                                    // Match "by username(" - capture non-greedy until (
-                                    const authorMatch = mainFloorLine.match(/by\s+(.*?)\(\d+\)/);
-                                    if (authorMatch && authorMatch[1]) {
-                                        metadata.author = authorMatch[1].trim();
+                                const parsedAuthor = parseAuthorFromMdContent(content);
+                                if (parsedAuthor) {
+                                    metadata.author = parsedAuthor.author;
+                                    if (!metadata.authorid) {
+                                        metadata.authorid = parsedAuthor.authorid;
                                     }
                                 } else {
                                     // Fallback to old logic
@@ -2440,6 +2500,7 @@ async function scanArchives() {
                                             }
                                         }
                                     }
+                                    metadata.author = formatAuthorDisplay(metadata.author, metadata.authorid);
                                 }
                             } catch (readErr) {
                                 console.warn("Failed to read MD file content:", readErr);
@@ -2529,7 +2590,7 @@ function renderArchiveList() {
         
         // Title logic: append (只看楼主) if authorid exists
         let displayTitle = item.title;
-        if (item.authorid) {
+        if (item.authorid && item.authorid !== '-1') {
             displayTitle += ` <span class="text-xs text-slate-400 font-normal">(只看楼主: ${item.authorid})</span>`;
         }
         
@@ -2539,6 +2600,12 @@ function renderArchiveList() {
             progressStr = `${item.latestProgress.max_page} 页/ ${item.latestProgress.max_floor} 楼`;
         }
 
+        const authorDisplay = formatAuthorDisplay(item.author, item.authorid);
+        const authorThreadUrl = buildAuthorThreadUrl(item.authorid);
+        const authorLink = authorThreadUrl
+            ? `<a href="#" onclick="openUrl('${authorThreadUrl}'); return false;" class="hover:text-primary hover:underline" title="查看楼主NGA用户信息">${authorDisplay}</a>`
+            : authorDisplay;
+
         row.innerHTML = `
             <td class="px-3 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
                 <a href="#" class="archive-tid-link hover:text-primary hover:underline" title="在浏览器中打开">${item.tid}</a>
@@ -2547,7 +2614,7 @@ function renderArchiveList() {
                 <a href="#" class="archive-title-link text-sm font-medium text-slate-900 hover:text-primary line-clamp-2 cursor-pointer" title="阅读存档">${displayTitle}</a>
             </td>
             <td class="px-3 py-4 whitespace-nowrap text-sm text-slate-500">
-                ${displayAuthor}
+                ${authorLink}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
                 ${progressStr}

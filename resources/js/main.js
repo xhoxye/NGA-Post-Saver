@@ -1168,7 +1168,7 @@ function renderSubscriptions() {
                     ${sub.latestProgress ? `
                         <span class="text-xs ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_page}页</span>
                         <span class="text-xs ${sub.hasNewContent ? 'text-green-600' : 'text-slate-700'}">${sub.latestProgress.max_floor}楼</span>
-                        <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-600 border border-green-200 ${sub.hasNewContent ? '' : 'invisible'}">NEW</span>
+                        <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-600 border border-green-200 ${sub.hasNewContent ? '' : 'invisible'}">NEW${sub.hasNewContent && sub.newContentDelta ? ` +${sub.newContentDelta}` : ''}</span>
                     ` : '<span class="text-xs text-slate-400">-</span>'}
                 </div>
             </td>
@@ -1409,15 +1409,20 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
 
                             // Check for updates
                             const oldMaxFloor = sub.latestProgress ? sub.latestProgress.max_floor : 0;
-                            if (newMaxFloor > oldMaxFloor) {
+                            const maxFloorDelta = newMaxFloor - oldMaxFloor;
+                            if (maxFloorDelta > 0) {
                                 sub.hasNewContent = true;
+                                sub.newContentDelta = maxFloorDelta;
+                            } else {
+                                sub.newContentDelta = 0;
                             }
 
                             sub.latestProgress = {
                                 max_floor: newMaxFloor,
                                 max_page: newMaxPage
                             };
-                            addLog('INFO', `更新进度: ${sub.latestProgress.max_page}页 / ${sub.latestProgress.max_floor}楼`);
+                            const deltaMsg = maxFloorDelta > 0 ? ` (+${maxFloorDelta})` : '';
+                            addLog('INFO', `更新进度: ${sub.latestProgress.max_page}页 / ${sub.latestProgress.max_floor}楼${deltaMsg}`);
                         }
                     } catch (iniErr) {
                          // process.ini might not exist or be readable, which is fine
@@ -1966,6 +1971,7 @@ window.openMarkdownViewer = async (id) => {
     // Clear new content flag if it exists
     if (sub.hasNewContent) {
         sub.hasNewContent = false;
+        sub.newContentDelta = 0;
         await saveSubscriptions();
         renderSubscriptions();
     }

@@ -1670,15 +1670,15 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
                 // 2. Images (Lazy + Lightbox)
                 const imgs = batchContainer.querySelectorAll('img');
                 imgs.forEach(img => {
-                    if (img.src.includes('/smile/')) return;
-                    
+                    const isExternalImage = (img.src && (img.src.startsWith('http://') || img.src.startsWith('https://')));
+                    const isSmileImage = img.src.includes('/smile/');
                     const isLazy = img.classList.contains('lazy-load-img');
                     
                     // Unified Lightbox Registration
                     // For local: use data-original-src (path). For external: use src.
                     const uniqueKey = isLazy ? img.getAttribute('data-original-src') : img.src;
                     
-                    if (uniqueKey && !seenImages.has(uniqueKey)) {
+                    if (!isSmileImage && uniqueKey && !seenImages.has(uniqueKey)) {
                         seenImages.add(uniqueKey);
                         currentLightboxImages.push({
                             type: isLazy ? 'local' : 'external',
@@ -1692,21 +1692,31 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
                     if (isLazy) {
                         lazyImageObserver.observe(img);
                     }
+
+                    // Fix external image hotlink issues (e.g., NGA /smile/ emotes)
+                    if (isExternalImage) {
+                        img.referrerPolicy = 'no-referrer';
+                        img.loading = 'lazy';
+                    }
                     
-                    // Click handler for ALL images
-                    img.style.cursor = 'zoom-in';
-                    img.onclick = (e) => {
-                        e.stopPropagation();
-                        // If lazy and not loaded, force load
-                        if (isLazy && img.dataset.loaded !== 'true') {
-                             loadLazyImage(img).then(() => {
-                                 // Use path for local lookup
-                                 openLightboxByPath(uniqueKey);
-                             });
-                        } else {
-                            openLightboxByPath(uniqueKey);
-                        }
-                    };
+                    // Click handler: skip smile images (avoid lightbox), but allow rendering
+                    if (!isSmileImage) {
+                        img.style.cursor = 'zoom-in';
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            // If lazy and not loaded, force load
+                            if (isLazy && img.dataset.loaded !== 'true') {
+                                 loadLazyImage(img).then(() => {
+                                     // Use path for local lookup
+                                     openLightboxByPath(uniqueKey);
+                                 });
+                            } else {
+                                openLightboxByPath(uniqueKey);
+                            }
+                        };
+                    } else {
+                        img.style.cursor = 'default';
+                    }
                 });
                 
                 // Generate/Update TOC

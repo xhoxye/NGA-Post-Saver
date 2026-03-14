@@ -55,6 +55,10 @@ const viewAllImagesBtn = document.getElementById('viewAllImagesBtn');
 const mdContent = document.getElementById('mdContent');
 const mdModalTitle = document.getElementById('mdModalTitle');
 const mdModalSubtitle = document.getElementById('mdModalSubtitle');
+const mdVolumeControls = document.getElementById('mdVolumeControls');
+const mdVolumeSelect = document.getElementById('mdVolumeSelect');
+const mdPrevVolumeBtn = document.getElementById('mdPrevVolumeBtn');
+const mdNextVolumeBtn = document.getElementById('mdNextVolumeBtn');
 
 // Lightbox Elements
 const imageLightbox = document.getElementById('imageLightbox');
@@ -77,6 +81,11 @@ const archiveCountBadge = document.getElementById('archiveCountBadge');
 
 let currentLightboxImages = []; // Array of {src, alt}
 let currentLightboxIndex = 0;
+let mdVolumeState = {
+    volumes: [],
+    currentFilePath: '',
+    baseTitle: ''
+};
 
 let isLogExpanded = false; // Default closed
 let currentPage = 1;
@@ -478,6 +487,38 @@ function setupEventListeners() {
     if(mdBackdrop) {
         mdBackdrop.addEventListener('click', closeMd);
     }
+
+    if (mdVolumeSelect) {
+        mdVolumeSelect.addEventListener('change', async () => {
+            const targetPath = mdVolumeSelect.value;
+            if (!targetPath || targetPath === mdVolumeState.currentFilePath) return;
+            await openLocalMarkdownFile(targetPath, mdVolumeState.baseTitle || mdModalTitle.textContent, targetPath);
+        });
+    }
+
+    if (mdPrevVolumeBtn) {
+        mdPrevVolumeBtn.addEventListener('click', async () => {
+            const volumes = mdVolumeState.volumes || [];
+            if (!volumes.length) return;
+            if (mdPrevVolumeBtn.disabled) return;
+            const currentIndex = volumes.findIndex(v => v.path === mdVolumeState.currentFilePath);
+            if (currentIndex <= 0) return;
+            const target = volumes[currentIndex - 1];
+            await openLocalMarkdownFile(target.path, mdVolumeState.baseTitle || mdModalTitle.textContent, target.path);
+        });
+    }
+
+    if (mdNextVolumeBtn) {
+        mdNextVolumeBtn.addEventListener('click', async () => {
+            const volumes = mdVolumeState.volumes || [];
+            if (!volumes.length) return;
+            if (mdNextVolumeBtn.disabled) return;
+            const currentIndex = volumes.findIndex(v => v.path === mdVolumeState.currentFilePath);
+            if (currentIndex === -1 || currentIndex >= volumes.length - 1) return;
+            const target = volumes[currentIndex + 1];
+            await openLocalMarkdownFile(target.path, mdVolumeState.baseTitle || mdModalTitle.textContent, target.path);
+        });
+    }
 }
 
 function updateLogUI() {
@@ -813,6 +854,64 @@ function formatAuthorDisplay(authorName, authorid) {
     return `UID:${authorid}`;
 }
 
+function cleanTitleVolumeSuffix(title) {
+    if (!title) return title;
+    const withoutExt = title.replace(/\.md\s*$/i, '').trim();
+    return withoutExt.replace(/-\d{3}\s*$/g, '').trim();
+}
+
+function parseVolumeFileName(fileName) {
+    const match = fileName.match(/^(.*)-(\d{3})\.md$/i);
+    if (match) {
+        return {
+            isVolume: true,
+            baseName: match[1],
+            volume: parseInt(match[2], 10),
+            fileName
+        };
+    }
+
+    return {
+        isVolume: false,
+        baseName: fileName.replace(/\.md$/i, ''),
+        volume: null,
+        fileName
+    };
+}
+
+function formatVolumeLabel(volume) {
+    return `第${volume}卷`;
+}
+
+async function resolveVolumeFiles(filePath) {
+    if (!filePath) return [];
+
+    const lastSlash = filePath.lastIndexOf('/');
+    const folderPath = lastSlash !== -1 ? filePath.substring(0, lastSlash) : '';
+    const fileName = lastSlash !== -1 ? filePath.substring(lastSlash + 1) : filePath;
+    const volumeInfo = parseVolumeFileName(fileName);
+
+    if (!folderPath) return [];
+
+    const entries = await Neutralino.filesystem.readDirectory(folderPath);
+    const mdFiles = entries
+        .filter(entry => entry.entry.toLowerCase().endsWith('.md') && entry.entry.toLowerCase() !== 'readme.md')
+        .map(entry => parseVolumeFileName(entry.entry))
+        .filter(item => item.isVolume);
+
+    if (!volumeInfo.isVolume) return [];
+
+    const matching = mdFiles
+        .filter(item => item.baseName === volumeInfo.baseName)
+        .map(item => ({
+            ...item,
+            path: `${folderPath}/${item.fileName}`
+        }))
+        .sort((a, b) => a.volume - b.volume);
+
+    return matching;
+}
+
 function parseAuthorFromMdContent(mdContent) {
     if (!mdContent) return null;
     const lines = mdContent.split(/\r?\n/).slice(0, 120);
@@ -839,6 +938,25 @@ function parseAuthorFromMdContent(mdContent) {
             author: `UID:${uidMatch[1]}`,
             authorid: uidMatch[1]
         };
+    }
+
+    return null;
+}
+
+function extractTitleFromMdLines(lines, { level3Only = false } = {}) {
+    if (!lines || !lines.length) return null;
+    const pattern = level3Only ? /^###\s+(.+)$/ : /^(#{1,6})\s+(.+)$/;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        const titleMatch = trimmed.match(pattern);
+        if (!titleMatch) continue;
+
+        const extractedText = level3Only ? titleMatch[1].trim() : titleMatch[2].trim();
+        if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
+            continue;
+        }
+        return extractedText;
     }
 
     return null;
@@ -1011,8 +1129,7 @@ function renderSubscriptions() {
         filteredSubscriptions = filteredSubscriptions.filter(sub => {
             return (sub.tid && sub.tid.toString().includes(searchTerm)) ||
                    (sub.title && sub.title.toLowerCase().includes(searchTerm)) ||
-                   (sub.author && sub.author.toLowerCase().includes(searchTerm)) ||
-                   (sub.command && sub.command.toLowerCase().includes(searchTerm));
+                   (sub.author && sub.author.toLowerCase().includes(searchTerm));
         });
     }
 
@@ -1137,7 +1254,7 @@ function renderSubscriptions() {
         }
 
         // Title logic: append (只看楼主) if authorid exists
-        let displayTitle = sub.title || sub.command;
+        let displayTitle = cleanTitleVolumeSuffix(sub.title || sub.command);
         if (sub.authorid && sub.authorid !== '-1') {
             displayTitle += ` <span class="text-xs text-slate-400 font-normal">(只看楼主: ${sub.authorid})</span>`;
         }
@@ -1358,30 +1475,20 @@ window.executeSubscriptionUpdate = async (id, isManual = false) => {
                     if (mdFileName.toLowerCase() !== 'readme' && mdFileName.toLowerCase() !== 'post' && !mdFileName.includes(sub.tid)) {
                          // Check if current title is weak (pure digits/symbols) OR corrupted (starts with <span) OR is placeholder
                         if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title.includes('等待获取')) {
-                            sub.title = mdFileName;
+                            sub.title = cleanTitleVolumeSuffix(mdFileName);
                         }
                    }
 
                    let mdContent = await Neutralino.filesystem.readFile(sub.local_path);
                    const lines = mdContent.split(/\r?\n/).slice(0, 100);
 
-                   // 1. Try to find Title
-                   for (const line of lines) {
-                       const trimmed = line.trim();
-                       const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
-                       if (titleMatch) {
-                           const extractedText = titleMatch[2].trim();
-                            // Ignore if it looks like a floor header (starts with <span or contains id="pid")
-                            if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
-                                continue;
-                            }
-
-                            // Only overwrite if current title is effectively just IDs (numbers and parens) OR corrupted OR is placeholder
-                            if (/^[\d\s\(\)\-]+$/.test(sub.title) || sub.title.startsWith('<span') || sub.title.includes('等待获取')) {
-                                sub.title = extractedText;
-                            }
-                           break; 
-                       }
+                   const currentTitle = sub.title || '';
+                   const normalizedTitle = currentTitle.trim().toLowerCase();
+                   const isPostTitle = normalizedTitle === 'post';
+                   const shouldOverrideTitle = isPostTitle || /^[\d\s\(\)\-]+$/.test(currentTitle) || currentTitle.startsWith('<span') || currentTitle.includes('等待获取');
+                   const extractedTitle = extractTitleFromMdLines(lines, { level3Only: isPostTitle });
+                   if (extractedTitle && shouldOverrideTitle) {
+                       sub.title = cleanTitleVolumeSuffix(extractedTitle);
                    }
 
                     const parsedAuthor = parseAuthorFromMdContent(mdContent);
@@ -1531,7 +1638,8 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
     document.body.style.overflow = 'hidden';
 
     // UI Reset
-    mdModalTitle.textContent = title || '帖子存档';
+    const cleanedTitle = cleanTitleVolumeSuffix(title || '帖子存档');
+    mdModalTitle.textContent = cleanedTitle || '帖子存档';
     mdModalSubtitle.textContent = subtitle || filePath;
     const mdContentContainer = document.getElementById('mdContentContainer');
     if(mdContentContainer) mdContentContainer.scrollTop = 0;
@@ -1545,6 +1653,43 @@ window.openLocalMarkdownFile = async (filePath, title, subtitle) => {
     // Reset State
     currentLightboxImages = []; // Global lightbox list
     const seenImages = new Set(); // To filter duplicates in lightbox
+
+    mdVolumeState = {
+        volumes: [],
+        currentFilePath: filePath,
+        baseTitle: cleanedTitle || title || ''
+    };
+
+    const updateVolumeControls = async () => {
+        if (!mdVolumeControls || !mdVolumeSelect) return;
+        const volumes = await resolveVolumeFiles(filePath);
+        mdVolumeState.volumes = volumes;
+
+        if (!volumes || volumes.length <= 1) {
+            mdVolumeControls.classList.add('hidden');
+            mdVolumeSelect.innerHTML = '<option value="">当前卷</option>';
+            if (mdPrevVolumeBtn) mdPrevVolumeBtn.disabled = true;
+            if (mdNextVolumeBtn) mdNextVolumeBtn.disabled = true;
+            return;
+        }
+
+        mdVolumeSelect.innerHTML = '';
+        volumes.forEach(vol => {
+            const option = document.createElement('option');
+            option.value = vol.path;
+            option.textContent = formatVolumeLabel(vol.volume);
+            if (vol.path === filePath) option.selected = true;
+            mdVolumeSelect.appendChild(option);
+        });
+
+        const currentIndex = volumes.findIndex(v => v.path === filePath);
+        if (mdPrevVolumeBtn) mdPrevVolumeBtn.disabled = currentIndex <= 0;
+        if (mdNextVolumeBtn) mdNextVolumeBtn.disabled = currentIndex === -1 || currentIndex >= volumes.length - 1;
+
+        mdVolumeControls.classList.remove('hidden');
+    };
+
+    await updateVolumeControls();
     
     // Helper to update "View All Images" button
     const updateViewAllBtn = (loading = false) => {
@@ -1976,7 +2121,7 @@ window.openMarkdownViewer = async (id) => {
         renderSubscriptions();
     }
     
-    await openLocalMarkdownFile(sub.local_path, sub.title || '帖子存档', sub.local_path);
+    await openLocalMarkdownFile(sub.local_path, cleanTitleVolumeSuffix(sub.title || '帖子存档'), sub.local_path);
 };
 
 // --- Lightbox Functions (Global) ---
@@ -2452,7 +2597,7 @@ async function scanArchives() {
                              if (mdFileName.toLowerCase() !== 'readme' && mdFileName.toLowerCase() !== 'post' && !mdFileName.includes(metadata.tid)) {
                                 // Check if current title is weak (pure digits/symbols) OR is 'post'
                                 if (/^[\d\s\(\)\-]+$/.test(metadata.title) || metadata.title.toLowerCase() === 'post') {
-                                    metadata.title = mdFileName;
+                                    metadata.title = cleanTitleVolumeSuffix(mdFileName);
                                 }
                             }
                              
@@ -2462,26 +2607,13 @@ async function scanArchives() {
                                 // Handle both \r\n and \n, read more lines to be safe
                                 const lines = content.split(/\r?\n/).slice(0, 100);
                                 
-                                // 1. Try to find Title
-                                // Look for any line starting with 1-6 #s followed by space
-                                // Example: ### Title or # Title
-                                for (const line of lines) {
-                                    const trimmed = line.trim();
-                                    const titleMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
-                                    if (titleMatch) {
-                                        const extractedText = titleMatch[2].trim();
-                                        // Ignore if it looks like a floor header (starts with <span or contains id="pid")
-                                        if (extractedText.startsWith('<span') || extractedText.includes('id="pid"')) {
-                                            continue;
-                                        }
-
-                                        // Only overwrite if current title is effectively just IDs (numbers and parens) OR is 'post'
-                                       // User request: 只对纯数字标题进行覆盖
-                                       if (/^[\d\s\(\)\-]+$/.test(metadata.title) || metadata.title.toLowerCase() === 'post') {
-                                           metadata.title = extractedText;
-                                       }
-                                        break; // Stop after first title found
-                                    }
+                                const currentTitle = metadata.title || '';
+                                const normalizedTitle = currentTitle.trim().toLowerCase();
+                                const isPostTitle = normalizedTitle === 'post';
+                                const shouldOverrideTitle = isPostTitle || /^[\d\s\(\)\-]+$/.test(currentTitle);
+                                const extractedTitle = extractTitleFromMdLines(lines, { level3Only: isPostTitle });
+                                if (extractedTitle && shouldOverrideTitle) {
+                                    metadata.title = cleanTitleVolumeSuffix(extractedTitle);
                                 }
 
                                 // 2. Try to find Author/Landlord
@@ -2595,7 +2727,7 @@ function renderArchiveList() {
         let displayAuthor = item.author;
         
         // Title logic: append (只看楼主) if authorid exists
-        let displayTitle = item.title;
+        let displayTitle = cleanTitleVolumeSuffix(item.title);
         if (item.authorid && item.authorid !== '-1') {
             displayTitle += ` <span class="text-xs text-slate-400 font-normal">(只看楼主: ${item.authorid})</span>`;
         }

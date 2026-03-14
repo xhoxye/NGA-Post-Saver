@@ -42,7 +42,7 @@
 <div class="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
 <span class="material-symbols-outlined text-[24px]">archive</span>
 </div>
-<h1 class="text-lg font-bold tracking-tight text-slate-900">NGA 帖子存档助手</h1> v1.0.3.1
+<h1 class="text-lg font-bold tracking-tight text-slate-900">NGA 帖子存档助手</h1> v1.0.4
 </div>
 <div class="flex items-center gap-6">
 <div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
@@ -102,7 +102,7 @@
                             <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-slate-400">
                                 <span class="material-symbols-outlined text-[18px]">search</span>
                             </span>
-                            <input id="searchInput" class="block w-full sm:w-64 rounded-lg border-gray-300 bg-slate-50 pl-8 pr-8 py-1.5 text-sm focus:border-primary focus:ring-primary text-slate-900 placeholder-slate-400" placeholder="搜索帖子..." type="text"/>
+                            <input id="searchInput" class="block w-full sm:w-64 rounded-lg border-gray-300 bg-slate-50 pl-8 pr-8 py-1.5 text-sm focus:border-primary focus:ring-primary text-slate-900 placeholder-slate-400" placeholder="搜索帖子TID、标题、楼主..." type="text"/>
                             <button id="clearSearchBtn" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer hidden" title="清空搜索">
                                 <span class="material-symbols-outlined text-[16px]">cancel</span>
                             </button>
@@ -232,9 +232,23 @@
                                 <p class="text-sm text-gray-500 mt-0.5" id="mdModalSubtitle">预览本地存档内容</p>
                             </div>
                         </div>
-                        <button id="closeMdModalBtn" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
-                            <span class="material-symbols-outlined">close</span>
-                        </button>
+                        <div class="flex items-center gap-4">
+                            <div id="mdVolumeControls" class="hidden items-center gap-2 h-8 mr-4">
+                                <span class="text-xs text-slate-500">分卷</span>
+                                <button id="mdPrevVolumeBtn" type="button" class="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white w-8 h-8 text-xs font-medium text-slate-600 hover:text-primary hover:border-primary transition-colors" title="上一卷">
+                                    <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+                                </button>
+                                <select id="mdVolumeSelect" class="text-xs rounded-md border-gray-300 bg-slate-50 h-8 min-h-8 py-0 leading-8 align-middle pl-2 pr-6 text-slate-700 focus:border-primary focus:ring-primary">
+                                    <option value="">当前卷</option>
+                                </select>
+                                <button id="mdNextVolumeBtn" type="button" class="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white w-8 h-8 text-xs font-medium text-slate-600 hover:text-primary hover:border-primary transition-colors" title="下一卷">
+                                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                                </button>
+                            </div>
+                            <button id="closeMdModalBtn" type="button" class="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-500 transition-colors">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -472,15 +486,15 @@
                                     <div class="mt-2">
                                         <input type="number" name="page_download_limit" id="page_download_limit" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
                                     </div>
-                                    <p class="mt-1 text-xs text-gray-500">0 或 -1 为不限制</p>
+                                    <p class="mt-1 text-xs text-gray-500">0 或 -1 为不限制，有效值-1至100（含）</p>
                                 </div>
 
                                 <div class="sm:col-span-3">
-                                    <label for="split_md_file" class="block text-sm font-medium leading-6 text-gray-900">Markdown 分卷页数</label>
+                                    <label for="split_md_file" class="block text-sm font-medium leading-6 text-gray-900">Markdown 分卷页数（每卷多少页，一页有20楼）</label>
                                     <div class="mt-2">
                                         <input type="number" name="split_md_file" id="split_md_file" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
                                     </div>
-                                    <p class="mt-1 text-xs text-gray-500">-1 为不切分</p>
+                                    <p class="mt-1 text-xs text-gray-500">0 或 -1 为不切分，有效值-1至200（含）</p>
                                 </div>
                                 
                                 <div class="sm:col-span-6">
